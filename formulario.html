@@ -77,6 +77,7 @@ button:disabled{opacity:.6;cursor:default;}
       <div class="big">🎉</div>
       <h1>¡Listo!</h1>
       <p class="sub">Tus datos fueron enviados a VICEWRLD. Pronto se pondrán en contacto contigo para coordinar la entrega.</p>
+      <a id="waFallback" class="hidden" style="display:block;margin-top:14px;padding:13px;border-radius:14px;background:#25D366;color:#fff;text-decoration:none;font-weight:700;font-size:14px;">📲 Si no se abrió WhatsApp, tocá aquí</a>
     </div>
   </div>
 </div>
@@ -121,6 +122,18 @@ async function init(){
 }
 init();
 
+function mensajeWhatsapp(c){
+  let t = `🆕 *Nuevo pedido desde el formulario*\n\n`;
+  t += `Distrito: ${c.distrito||"-"}\n`;
+  t += `Dirección: ${c.direccion||"-"}\n`;
+  t += `Nombre: ${c.nombre||"-"}\n`;
+  if(c.dni) t += `DNI: ${c.dni}\n`;
+  t += `Celular: ${c.cel||"-"}\n`;
+  t += `Talla: ${c.talla||"-"}\n`;
+  if(c.notas) t += `Notas: ${c.notas}\n`;
+  return t;
+}
+
 document.getElementById("sendBtn").addEventListener("click", async ()=>{
   const statusEl=document.getElementById("formStatus");
   const campos={
@@ -139,6 +152,9 @@ document.getElementById("sendBtn").addEventListener("click", async ()=>{
   const btn=document.getElementById("sendBtn");
   btn.disabled=true;
   statusEl.textContent="Enviando...";
+  // Se abre la ventana ACÁ (antes del await) para que el navegador no la bloquee
+  // por tratarse de una acción directa del usuario.
+  const waWin = window.open("", "_blank");
   try{
     const now=Date.now();
     const pedidoRef=db.collection("pedidos").doc();
@@ -147,9 +163,14 @@ document.getElementById("sendBtn").addEventListener("click", async ()=>{
     batch.set(pedidoRef, {...campos, tipo:"", createdAt:now, dateKey:localDateKey(new Date(now)), motorizadoEmail:null, enlaceToken:token, origen:"cliente"});
     batch.update(enlaceRef, {usado:true, pedidoId:pedidoRef.id, usadoAt:now});
     await batch.commit();
+    const waUrl = "https://wa.me/51914212427?text="+encodeURIComponent(mensajeWhatsapp(campos));
+    if(waWin){ waWin.location.href = waUrl; } else { window.open(waUrl, "_blank"); }
+    const fb=document.getElementById("waFallback");
+    fb.href=waUrl; fb.classList.remove("hidden");
     showState("stateDone");
   }catch(e){
     console.error("Error enviando pedido:", e);
+    if(waWin) waWin.close();
     statusEl.textContent="No se pudo enviar. Es posible que el enlace ya se haya usado. Pide uno nuevo a VICEWRLD.";
     btn.disabled=false;
   }
