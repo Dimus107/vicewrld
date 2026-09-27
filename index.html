@@ -253,6 +253,16 @@ textarea{resize:vertical;min-height:50px;}
   <p class="status-line" id="chatStatus"></p>
 </div></div>
 
+<div class="sheet-bg" id="moreBg"><div class="sheet">
+  <h2>Más opciones</h2>
+  <div style="display:flex;flex-direction:column;gap:10px;margin-top:6px;">
+    <button id="moreAsignBtn" style="padding:13px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:14px;cursor:pointer;text-align:left;">👤 Asignar motorizado</button>
+    <button id="moreEditBtn" style="padding:13px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:14px;cursor:pointer;text-align:left;">✏️ Editar datos</button>
+    <button id="moreDeleteBtn" style="padding:13px;border-radius:12px;border:1px solid var(--bad);background:none;color:var(--bad);font-size:14px;cursor:pointer;text-align:left;">🗑 Eliminar pedido</button>
+  </div>
+  <div class="sheet-actions"><button class="btn-cancel" id="moreCancel" style="flex:1;">Cancelar</button></div>
+</div></div>
+
 <div class="sheet-bg" id="delBg"><div class="sheet">
   <h2>Eliminar pedido</h2>
   <p style="font-size:14px;color:var(--sub);">Esto borrará el pedido y su historial de forma permanente.</p>
@@ -494,9 +504,8 @@ function cardHtml(o, readOnly){
     ${o.estado==="entregado"?`<div class="coment"><b>Cobrado:</b> S/ ${esc(o.montoCobrado)||"-"} · <b>Tarifa:</b> S/ ${esc(o.tarifaDelivery)||"-"}</div>`:""}
     ${o.comentario?`<div class="coment">💬 ${esc(o.comentario)}</div>`:""}
     ${o.fotoData?`<img class="foto" src="${o.fotoData}" alt="Foto entrega">`:""}
-    ${canAssign?`<div class="actions"><button class="asignbtn" data-asignid="${o.id}">👤 Asignar motorizado</button><button class="editbtn" data-editid="${o.id}">✏️ Editar datos</button></div>`:""}
+    ${(canAssign||canDelete)?`<div class="actions"><button class="morebtn" data-moreid="${o.id}" data-canassign="${canAssign?1:0}" data-candelete="${canDelete?1:0}">⋯ Más opciones</button></div>`:""}
     ${canUpdateEstado?`<div class="actions">${Object.entries(STATUS).map(([k,v])=>`<button data-id="${o.id}" data-st="${k}" class="${o.estado===k?'on-'+k:''}">${v.label}</button>`).join("")}</div>`:""}
-    ${canDelete?`<div class="actions"><button class="delbtn" data-delid="${o.id}" style="border-color:var(--bad);color:var(--bad);">🗑 Eliminar pedido</button></div>`:""}
     <button class="chatBtn${chatInfo.cerrado?" closed":""}" data-chatid="${o.id}">💬 Comentarios${chatInfo.count?` <span class="cnt">${chatInfo.count}</span>`:""}${chatInfo.cerrado?" · Resuelto ✅":""}</button>
   </div>`;
 }
@@ -539,9 +548,7 @@ function render(){
   document.getElementById("list").innerHTML = html;
 
   document.querySelectorAll(".actions button[data-st]").forEach(btn=>btn.addEventListener("click",()=>openEstadoSheet(btn.dataset.id, btn.dataset.st)));
-  document.querySelectorAll(".actions button[data-delid]").forEach(b=>b.addEventListener("click",()=>{pendingDeleteId=b.dataset.delid;document.getElementById("delStatus").textContent="";document.getElementById("delBg").classList.add("open");}));
-  document.querySelectorAll(".actions button[data-asignid]").forEach(b=>b.addEventListener("click",()=>openAsignSheet(b.dataset.asignid)));
-  document.querySelectorAll(".actions button[data-editid]").forEach(b=>b.addEventListener("click",()=>openEditSheet(b.dataset.editid)));
+  document.querySelectorAll(".morebtn[data-moreid]").forEach(b=>b.addEventListener("click",()=>openMoreSheet(b.dataset.moreid, b.dataset.canassign==="1", b.dataset.candelete==="1")));
   document.querySelectorAll(".chatBtn[data-chatid]").forEach(b=>b.addEventListener("click",()=>openChatSheet(b.dataset.chatid)));
   document.querySelectorAll(".reopenbtn").forEach(b=>b.addEventListener("click", async ()=>{ await db.collection("cierres").doc(b.dataset.reopen).delete(); openFolder=null; }));
   const ft=document.getElementById("folderToggle");
@@ -586,6 +593,30 @@ document.getElementById("profileSave").addEventListener("click", async ()=>{
 });
 
 /* ---------- ASIGNAR MOTORIZADO ---------- */
+let pendingMoreId=null;
+function openMoreSheet(id, canAssignFlag, canDeleteFlag){
+  pendingMoreId = id;
+  document.getElementById("moreAsignBtn").style.display = canAssignFlag ? "block" : "none";
+  document.getElementById("moreEditBtn").style.display = canAssignFlag ? "block" : "none";
+  document.getElementById("moreDeleteBtn").style.display = canDeleteFlag ? "block" : "none";
+  document.getElementById("moreBg").classList.add("open");
+}
+document.getElementById("moreCancel").addEventListener("click",()=>document.getElementById("moreBg").classList.remove("open"));
+document.getElementById("moreAsignBtn").addEventListener("click",()=>{
+  document.getElementById("moreBg").classList.remove("open");
+  openAsignSheet(pendingMoreId);
+});
+document.getElementById("moreEditBtn").addEventListener("click",()=>{
+  document.getElementById("moreBg").classList.remove("open");
+  openEditSheet(pendingMoreId);
+});
+document.getElementById("moreDeleteBtn").addEventListener("click",()=>{
+  document.getElementById("moreBg").classList.remove("open");
+  pendingDeleteId = pendingMoreId;
+  document.getElementById("delStatus").textContent="";
+  document.getElementById("delBg").classList.add("open");
+});
+
 function openAsignSheet(id){
   pendingAsignId=id;
   const sel=document.getElementById("a_moto");
