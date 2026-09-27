@@ -64,7 +64,6 @@ button:disabled{opacity:.6;cursor:default;}
     <label>Distrito / Provincia</label><input id="f_distrito">
     <label>Dirección exacta</label><input id="f_direccion">
     <label>Nombre completo</label><input id="f_nombre">
-    <label>DNI (opcional)</label><input id="f_dni" inputmode="numeric">
     <label>Celular (WhatsApp)</label><input id="f_cel" inputmode="tel">
     <label>Talla</label><input id="f_talla">
     <label>Notas (opcional)</label><textarea id="f_notas"></textarea>
@@ -127,7 +126,6 @@ function mensajeWhatsapp(c){
   t += `Distrito: ${c.distrito||"-"}\n`;
   t += `Dirección: ${c.direccion||"-"}\n`;
   t += `Nombre: ${c.nombre||"-"}\n`;
-  if(c.dni) t += `DNI: ${c.dni}\n`;
   t += `Celular: ${c.cel||"-"}\n`;
   t += `Talla: ${c.talla||"-"}\n`;
   if(c.notas) t += `Notas: ${c.notas}\n`;
@@ -140,7 +138,6 @@ document.getElementById("sendBtn").addEventListener("click", async ()=>{
     distrito: document.getElementById("f_distrito").value.trim(),
     direccion: document.getElementById("f_direccion").value.trim(),
     nombre: document.getElementById("f_nombre").value.trim(),
-    dni: document.getElementById("f_dni").value.trim(),
     cel: document.getElementById("f_cel").value.trim(),
     talla: document.getElementById("f_talla").value.trim(),
     notas: document.getElementById("f_notas").value.trim()
