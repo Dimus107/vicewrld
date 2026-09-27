@@ -168,18 +168,39 @@ textarea{resize:vertical;min-height:50px;}
 
 <div class="sheet-bg" id="sheetBg"><div class="sheet">
   <h2 id="sheetTitle">Nuevo pedido</h2>
-  <label>⚡ Pegar datos (opcional) — se autocompleta abajo</label>
-  <textarea id="f_quick" rows="5" placeholder="ATE - MAX ARROYO&#10;&#10;DIRECCIÓN: ...&#10;DNI: ...&#10;CEL: ...&#10;TALLA: ...&#10;SALDO: S/..."></textarea>
-  <label>Distrito / Provincia</label><input id="f_distrito">
-  <label>Dirección exacta</label><input id="f_direccion">
-  <label>Nombre</label><input id="f_nombre">
-  <label>DNI</label><input id="f_dni" inputmode="numeric">
-  <label>Celular</label><input id="f_cel" inputmode="tel">
-  <label>Talla</label><input id="f_talla">
-  <label>Monto a cobrar (S/)</label><input id="f_monto" inputmode="decimal">
-  <label>Notas (opcional)</label><textarea id="f_notas"></textarea>
-  <div class="sheet-actions"><button class="btn-cancel" id="cancelBtn">Cancelar</button><button class="btn-save" id="saveBtn">Guardar pedido</button></div>
-  <p class="status-line" id="saveStatus"></p>
+
+  <div id="modeManual">
+    <button type="button" id="switchToLinkBtn" style="width:100%;margin-top:0;padding:11px;border-radius:14px;border:1.5px dashed #9ab8a3;background:var(--bg);color:var(--ink);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">🔗 Enviar enlace para que el cliente llene sus datos</button>
+    <label>⚡ Pegar datos (opcional) — se autocompleta abajo</label>
+    <textarea id="f_quick" rows="5" placeholder="ATE - MAX ARROYO&#10;&#10;DIRECCIÓN: ...&#10;DNI: ...&#10;CEL: ...&#10;TALLA: ...&#10;SALDO: S/..."></textarea>
+    <label>Distrito / Provincia</label><input id="f_distrito">
+    <label>Dirección exacta</label><input id="f_direccion">
+    <label>Nombre</label><input id="f_nombre">
+    <label>DNI</label><input id="f_dni" inputmode="numeric">
+    <label>Celular</label><input id="f_cel" inputmode="tel">
+    <label>Talla</label><input id="f_talla">
+    <label>Monto a cobrar (S/)</label><input id="f_monto" inputmode="decimal">
+    <label>Notas (opcional)</label><textarea id="f_notas"></textarea>
+    <div class="sheet-actions"><button class="btn-cancel" id="cancelBtn">Cancelar</button><button class="btn-save" id="saveBtn">Guardar pedido</button></div>
+    <p class="status-line" id="saveStatus"></p>
+  </div>
+
+  <div id="modeLink" style="display:none;">
+    <p style="font-size:13.5px;color:var(--sub);line-height:1.6;margin:2px 0 0;">Genera un enlace de un solo uso y envíaselo por WhatsApp. Tu cliente completa sus datos (sin el monto a cobrar, eso lo pones tú después) y aparece aquí como nuevo pedido. Apenas lo use, el enlace deja de funcionar.</p>
+    <div id="linkResult" style="display:none;margin-top:14px;">
+      <label>Enlace generado</label>
+      <input id="linkUrl" readonly style="font-size:12.5px;">
+      <div class="sheet-actions">
+        <button class="btn-cancel" id="linkCopyBtn" type="button">📋 Copiar</button>
+        <button class="btn-save" id="linkWaBtn" type="button">📲 Enviar por WhatsApp</button>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button class="btn-cancel" id="switchToManualBtn" type="button">← Llenar yo mismo</button>
+      <button class="btn-save" id="linkGenBtn" type="button">🔗 Generar enlace</button>
+    </div>
+    <p class="status-line" id="linkStatus"></p>
+  </div>
 </div></div>
 
 <div class="sheet-bg" id="estBg"><div class="sheet">
@@ -453,6 +474,7 @@ function cardHtml(o, readOnly){
         <div class="cardIcon" style="background:${iconBg}">${iconLetra}</div>
         <div>
           <div class="name">${esc(o.distrito)||"Sin distrito"} · ${esc(o.nombre)||"Sin nombre"}</div>
+          ${o.origen==="cliente"?'<div style="font-size:10.5px;font-weight:700;color:var(--sub);margin-top:1px;">📝 Llenado por el cliente</div>':""}
           <div class="info"><b>Talla:</b> ${esc(o.talla)||"-"}</div>
           <div class="info"><b>Cobrar:</b> ${monto}</div>
           <div class="info"><b>Motorizado:</b> ${motoNombre?esc(motoNombre):"Sin asignar"}</div>
@@ -635,14 +657,57 @@ function resetSheetFields(){
   document.getElementById("f_quick").value="";
   FIELD_IDS.forEach(id=>document.getElementById(id).value="");
 }
+function showManualMode(){
+  document.getElementById("modeManual").style.display="block";
+  document.getElementById("modeLink").style.display="none";
+}
+function showLinkMode(){
+  document.getElementById("modeManual").style.display="none";
+  document.getElementById("modeLink").style.display="block";
+  document.getElementById("linkResult").style.display="none";
+  document.getElementById("linkUrl").value="";
+  document.getElementById("linkStatus").textContent="";
+}
+document.getElementById("switchToLinkBtn").addEventListener("click", showLinkMode);
+document.getElementById("switchToManualBtn").addEventListener("click", showManualMode);
 document.getElementById("addBtn").addEventListener("click",()=>{
   pendingEditId=null;
   document.getElementById("sheetTitle").textContent="Nuevo pedido";
   document.getElementById("saveBtn").textContent="Guardar pedido";
+  document.getElementById("switchToLinkBtn").style.display="block";
   resetSheetFields();
+  showManualMode();
   sheetBg.classList.add("open");
 });
 document.getElementById("cancelBtn").addEventListener("click",()=>{ pendingEditId=null; sheetBg.classList.remove("open"); });
+
+function genToken(){
+  if(window.crypto && crypto.randomUUID) return crypto.randomUUID().replace(/-/g,"").slice(0,16);
+  return Array.from({length:16},()=>Math.floor(Math.random()*36).toString(36)).join("");
+}
+document.getElementById("linkGenBtn").addEventListener("click", async ()=>{
+  const st=document.getElementById("linkStatus"); st.textContent="Generando...";
+  try{
+    const token=genToken();
+    await db.collection("enlaces").doc(token).set({creadoAt:Date.now(), creadoPor:myEmail, usado:false});
+    const url = location.origin + "/formulario.html?t=" + token;
+    document.getElementById("linkUrl").value = url;
+    document.getElementById("linkResult").style.display="block";
+    st.textContent="";
+  }catch(e){ st.textContent="No se pudo generar el enlace."; console.error(e); }
+});
+document.getElementById("linkCopyBtn").addEventListener("click", async ()=>{
+  const url=document.getElementById("linkUrl").value;
+  const st=document.getElementById("linkStatus");
+  try{ await navigator.clipboard.writeText(url); st.textContent="Enlace copiado ✅"; }
+  catch(e){ st.textContent="No se pudo copiar, selecciónalo y cópialo a mano."; }
+});
+document.getElementById("linkWaBtn").addEventListener("click", ()=>{
+  const url=document.getElementById("linkUrl").value;
+  if(!url) return;
+  const msg=encodeURIComponent(`Hola! 👋 Por favor completa tus datos de pedido en este enlace:\n${url}`);
+  window.open(`https://wa.me/?text=${msg}`, "_blank");
+});
 
 function openEditSheet(id){
   const o=merged().find(x=>x.id===id);
@@ -650,6 +715,8 @@ function openEditSheet(id){
   pendingEditId=id;
   document.getElementById("sheetTitle").textContent="Editar pedido";
   document.getElementById("saveBtn").textContent="Guardar cambios";
+  document.getElementById("switchToLinkBtn").style.display="none";
+  showManualMode();
   document.getElementById("f_quick").value="";
   document.getElementById("f_distrito").value=o.distrito||"";
   document.getElementById("f_direccion").value=o.direccion||"";
