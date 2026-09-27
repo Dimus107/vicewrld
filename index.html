@@ -167,7 +167,10 @@ textarea{resize:vertical;min-height:50px;}
 </div></div>
 
 <div class="sheet-bg" id="sheetBg"><div class="sheet">
-  <h2 id="sheetTitle">Nuevo pedido</h2>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
+    <h2 id="sheetTitle" style="margin:0;">Nuevo pedido</h2>
+    <button type="button" id="sheetCloseX" style="width:32px;height:32px;border-radius:50%;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-size:16px;font-weight:700;cursor:pointer;flex:0 0 auto;display:flex;align-items:center;justify-content:center;padding:0;">✕</button>
+  </div>
 
   <div id="modeManual">
     <button type="button" id="switchToLinkBtn" style="width:100%;margin-top:0;padding:11px;border-radius:14px;border:1.5px dashed #9ab8a3;background:var(--bg);color:var(--ink);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">🔗 Enviar enlace para que el cliente llene sus datos</button>
@@ -680,6 +683,7 @@ document.getElementById("addBtn").addEventListener("click",()=>{
   sheetBg.classList.add("open");
 });
 document.getElementById("cancelBtn").addEventListener("click",()=>{ pendingEditId=null; sheetBg.classList.remove("open"); });
+document.getElementById("sheetCloseX").addEventListener("click",()=>{ pendingEditId=null; sheetBg.classList.remove("open"); showManualMode(); });
 
 function genToken(){
   if(window.crypto && crypto.randomUUID) return crypto.randomUUID().replace(/-/g,"").slice(0,16);
