@@ -258,6 +258,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const auth = firebase.auth();
 const db = firebase.firestore();
+db.enablePersistence({synchronizeTabs:true}).catch(e=>console.warn("Persistencia offline no disponible:", e.code));
 
 let currentUser=null, myRole=null, myEmail=null;
 let pedidos=[], estadosMap={}, cierresMap={}, usuariosMap={}, chatsMap={};
@@ -349,7 +350,19 @@ auth.onAuthStateChanged(async user=>{
     return;
   }
   currentUser=user; myEmail=(user.email||"").toLowerCase();
-  const doc = await db.collection("usuarios").doc(myEmail).get();
+  let doc;
+  try{
+    doc = await db.collection("usuarios").doc(myEmail).get();
+  }catch(e){
+    console.error("Error leyendo rol (probablemente sin red aún), reintentando con caché:", e);
+    try{
+      doc = await db.collection("usuarios").doc(myEmail).get({source:"cache"});
+    }catch(e2){
+      document.getElementById("loginError").textContent = "No se pudo verificar tu cuenta (revisa tu conexión). Vuelve a abrir la app.";
+      document.getElementById("loginScreen").style.display="flex";
+      return; // OJO: no cerramos sesión aquí, solo fue un problema de red, no de permisos
+    }
+  }
   if(!doc.exists){
     document.getElementById("loginError").textContent="Tu cuenta no tiene un rol asignado. Pide al dueño que te agregue.";
     auth.signOut();
