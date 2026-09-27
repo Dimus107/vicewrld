@@ -299,7 +299,7 @@ let pedidos=[], estadosMap={}, cierresMap={}, usuariosMap={}, chatsMap={};
 let pendingChatId=null;
 let filter="all";
 let pendingId=null, pendingEstado=null, pendingDeleteId=null, pendingAsignId=null, pendingEditId=null;
-let foldersOpen=false, openFolder=null;
+let foldersOpen=false, openFolder=null, archivedOpen=false, openArchived=null;
 
 const STATUS={
   pendiente:{label:"Pendiente",cls:"b-pendiente"},
@@ -526,30 +526,45 @@ function cardHtml(o, readOnly){
 }
 
 function foldersHtml(){
-  const keys=Object.keys(cierresMap).sort().reverse();
-  if(!keys.length || myRole==="motorizado") return "";
-  let html=`<div class="folder-toggle" id="folderToggle">📁 Días cerrados (${keys.length}) ${foldersOpen?"▲":"▼"}</div>`;
-  if(foldersOpen){
-    html += keys.map(k=>{
-      const r=cierresMap[k];
-      let inner="";
-      if(openFolder===k){
-        const items=merged().filter(o=>fechaEfectiva(o)===k);
-        const perMoto = r.perMotorizado || {};
-        inner=`<div class="folder-day"><div class="summary-card"><h3>Resumen del ${k}</h3>
-          ${Object.entries(perMoto).map(([email,m])=>`<div class="moto-block"><b>${esc(usuariosMap[email]?.nombre||email)}</b>
-            <div class="sumrow"><span>Entregados</span><b>${m.count}</b></div>
-            <div class="sumrow"><span>Cobrado</span><b>S/ ${Number(m.cobrado).toFixed(2)}</b></div>
-            <div class="sumrow"><span>Tarifas</span><b>S/ ${Number(m.tarifas).toFixed(2)}</b></div>
-            <div class="sumtotal">Deposita: S/ ${Number(m.deposito).toFixed(2)}</div></div>`).join("")}
-          <div class="sumtotal">Total general: S/ ${Number(r.totalDeposito||0).toFixed(2)}</div>
-          ${myRole==="dueno"?`<button class="reopenbtn" data-reopen="${k}" style="margin-top:12px;width:100%;padding:9px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;">🔓 Reabrir este día</button>`:""}
-          </div>
-          ${items.map(o=>cardHtml(o,true)).join("")}
-        </div>`;
-      }
-      return `<div class="folder-row" data-day="${k}">📁 ${k} · S/ ${Number(r.totalDeposito||0).toFixed(2)} total</div>${inner}`;
-    }).join("");
+  const allKeys=Object.keys(cierresMap).sort().reverse();
+  if(!allKeys.length || myRole==="motorizado") return "";
+  const activeKeys = allKeys.filter(k=>!cierresMap[k].archivado);
+  const archivedKeys = allKeys.filter(k=>cierresMap[k].archivado);
+
+  function folderRow(k, archived){
+    const r=cierresMap[k];
+    let inner="";
+    const isOpen = archived ? openArchived===k : openFolder===k;
+    if(isOpen){
+      const items=merged().filter(o=>fechaEfectiva(o)===k);
+      const perMoto = r.perMotorizado || {};
+      inner=`<div class="folder-day"><div class="summary-card"><h3>Resumen del ${k}</h3>
+        ${Object.entries(perMoto).map(([email,m])=>`<div class="moto-block"><b>${esc(usuariosMap[email]?.nombre||email)}</b>
+          <div class="sumrow"><span>Entregados</span><b>${m.count}</b></div>
+          <div class="sumrow"><span>Cobrado</span><b>S/ ${Number(m.cobrado).toFixed(2)}</b></div>
+          <div class="sumrow"><span>Tarifas</span><b>S/ ${Number(m.tarifas).toFixed(2)}</b></div>
+          <div class="sumtotal">Deposita: S/ ${Number(m.deposito).toFixed(2)}</div></div>`).join("")}
+        <div class="sumtotal">Total general: S/ ${Number(r.totalDeposito||0).toFixed(2)}</div>
+        ${myRole==="dueno"?(archived
+          ? `<button class="unarchivebtn" data-unarchive="${k}" style="margin-top:12px;width:100%;padding:9px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;">📤 Desarchivar</button>`
+          : `<button class="reopenbtn" data-reopen="${k}" style="margin-top:12px;width:100%;padding:9px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;">🔓 Reabrir este día</button>
+             <button class="archivebtn" data-archive="${k}" style="margin-top:8px;width:100%;padding:9px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;">📦 Archivar (ya no estorba en la lista)</button>`
+        ):""}
+        </div>
+        ${items.map(o=>cardHtml(o,true)).join("")}
+      </div>`;
+    }
+    const cls = archived ? "folder-row" : "folder-row";
+    const dataAttr = archived ? `data-archday="${k}"` : `data-day="${k}"`;
+    return `<div class="${cls}" ${dataAttr}>📁 ${k} · S/ ${Number(r.totalDeposito||0).toFixed(2)} total</div>${inner}`;
+  }
+
+  let html=`<div class="folder-toggle" id="folderToggle">📁 Días cerrados (${activeKeys.length}) ${foldersOpen?"▲":"▼"}</div>`;
+  if(foldersOpen) html += activeKeys.map(k=>folderRow(k,false)).join("");
+
+  if(archivedKeys.length){
+    html += `<div class="folder-toggle" id="archivedToggle" style="margin-top:14px;opacity:.75;">🗄 Historial archivado (${archivedKeys.length}) ${archivedOpen?"▲":"▼"}</div>`;
+    if(archivedOpen) html += archivedKeys.map(k=>folderRow(k,true)).join("");
   }
   return html;
 }
@@ -566,9 +581,14 @@ function render(){
   document.querySelectorAll(".morebtn[data-moreid]").forEach(b=>b.addEventListener("click",()=>openMoreSheet(b.dataset.moreid, b.dataset.canassign==="1", b.dataset.candelete==="1")));
   document.querySelectorAll(".chatBtn[data-chatid]").forEach(b=>b.addEventListener("click",()=>openChatSheet(b.dataset.chatid)));
   document.querySelectorAll(".reopenbtn").forEach(b=>b.addEventListener("click", async ()=>{ await db.collection("cierres").doc(b.dataset.reopen).delete(); openFolder=null; }));
+  document.querySelectorAll(".archivebtn").forEach(b=>b.addEventListener("click", async ()=>{ await db.collection("cierres").doc(b.dataset.archive).set({archivado:true},{merge:true}); openFolder=null; }));
+  document.querySelectorAll(".unarchivebtn").forEach(b=>b.addEventListener("click", async ()=>{ await db.collection("cierres").doc(b.dataset.unarchive).set({archivado:false},{merge:true}); openArchived=null; }));
   const ft=document.getElementById("folderToggle");
   if(ft) ft.addEventListener("click",()=>{foldersOpen=!foldersOpen;render();});
-  document.querySelectorAll(".folder-row").forEach(row=>row.addEventListener("click",()=>{const d=row.dataset.day;openFolder=openFolder===d?null:d;render();}));
+  const at=document.getElementById("archivedToggle");
+  if(at) at.addEventListener("click",()=>{archivedOpen=!archivedOpen;render();});
+  document.querySelectorAll(".folder-row[data-day]").forEach(row=>row.addEventListener("click",()=>{const d=row.dataset.day;openFolder=openFolder===d?null:d;render();}));
+  document.querySelectorAll(".folder-row[data-archday]").forEach(row=>row.addEventListener("click",()=>{const d=row.dataset.archday;openArchived=openArchived===d?null:d;render();}));
 }
 
 /* ---------- MI PERFIL ---------- */
