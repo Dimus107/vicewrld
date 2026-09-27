@@ -528,7 +528,7 @@ function foldersHtml(){
 }
 
 function render(){
-  const active = visiblePedidos().filter(o=>o.estado==="reprogramado"||!cierresMap[o.dateKey]);
+  const active = visiblePedidos().filter(o=>o.estado!=="entregado"||!cierresMap[o.dateKey]);
   const items = active.filter(o=>filter==="all"||o.estado===filter).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   document.getElementById("subtitle").textContent = active.length + " pedido(s) activo(s) · " + (myRole==="dueno"?"Dueño":myRole==="supervisor"?"Supervisor":"Motorizado");
   let html = items.length ? items.map(o=>cardHtml(o,false)).join("") : '<div class="empty">No hay pedidos activos.</div>';
