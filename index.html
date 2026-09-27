@@ -423,6 +423,20 @@ function merged(){
     return {...p, dateKey:dk, estado:e.estado||"pendiente", comentario:e.comentario||"", fotoData:e.fotoData||null, montoCobrado:e.montoCobrado, tarifaDelivery:e.tarifaDelivery, estadoAt:e.updatedAt||0};
   });
 }
+// El "día" que importa para cierres es el día en que se ENTREGÓ el pedido,
+// no el día en que se creó (un pedido puede crearse un día y entregarse otro).
+function fechaEfectiva(o){
+  if(o.estado==="entregado" && o.estadoAt) return localDateKey(new Date(o.estadoAt));
+  return o.dateKey;
+}
+function fmtFechaHora(ts){
+  if(!ts) return "";
+  const d = new Date(ts);
+  const dia = pad(d.getDate()), mes = pad(d.getMonth()+1);
+  let h = d.getHours(); const m = pad(d.getMinutes());
+  const ampm = h>=12?"pm":"am"; h = h%12; if(h===0) h=12;
+  return `${dia}/${mes} · ${h}:${m}${ampm}`;
+}
 function visiblePedidos(){
   const all = merged();
   if(myRole==="motorizado") return all.filter(o=>o.motorizadoEmail===myEmail);
@@ -500,6 +514,7 @@ function cardHtml(o, readOnly){
       ${o.dni?`<div><b>DNI:</b> ${esc(o.dni)}</div>`:""}
       <div><b>Celular:</b> ${waNum?`<a class="tel" href="https://wa.me/${waNum}?text=${waMsg}" target="_blank" rel="noopener">${esc(o.cel)} (WhatsApp)</a>`:"-"}</div>
       ${o.notas?`<div><b>Notas:</b> ${esc(o.notas)}</div>`:""}
+      <div style="font-size:11.5px;color:var(--sub);margin-top:4px;">🕓 Pedido: ${fmtFechaHora(o.createdAt)}${o.estado==="entregado"&&o.estadoAt?` · ✅ Entregado: ${fmtFechaHora(o.estadoAt)}`:""}</div>
     </div>
     ${o.estado==="entregado"?`<div class="coment"><b>Cobrado:</b> S/ ${esc(o.montoCobrado)||"-"} · <b>Tarifa:</b> S/ ${esc(o.tarifaDelivery)||"-"}</div>`:""}
     ${o.comentario?`<div class="coment">💬 ${esc(o.comentario)}</div>`:""}
@@ -519,7 +534,7 @@ function foldersHtml(){
       const r=cierresMap[k];
       let inner="";
       if(openFolder===k){
-        const items=merged().filter(o=>o.dateKey===k);
+        const items=merged().filter(o=>fechaEfectiva(o)===k);
         const perMoto = r.perMotorizado || {};
         inner=`<div class="folder-day"><div class="summary-card"><h3>Resumen del ${k}</h3>
           ${Object.entries(perMoto).map(([email,m])=>`<div class="moto-block"><b>${esc(usuariosMap[email]?.nombre||email)}</b>
@@ -540,7 +555,7 @@ function foldersHtml(){
 }
 
 function render(){
-  const active = visiblePedidos().filter(o=>o.estado!=="entregado"||!cierresMap[o.dateKey]);
+  const active = visiblePedidos().filter(o=>o.estado!=="entregado"||!cierresMap[fechaEfectiva(o)]);
   const items = active.filter(o=>filter==="all"||o.estado===filter).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   document.getElementById("subtitle").textContent = active.length + " pedido(s) activo(s) · " + (myRole==="dueno"?"Dueño":myRole==="supervisor"?"Supervisor":"Motorizado");
   let html = items.length ? items.map(o=>cardHtml(o,false)).join("") : '<div class="empty">No hay pedidos activos.</div>';
@@ -851,7 +866,7 @@ document.getElementById("delConfirm").addEventListener("click", async ()=>{
 
 /* ---------- CIERRE DE DÍA ---------- */
 function computeCierre(dayKey){
-  const items=merged().filter(o=>o.dateKey===dayKey && o.estado==="entregado");
+  const items=merged().filter(o=>o.estado==="entregado" && fechaEfectiva(o)===dayKey);
   const perMotorizado={};
   items.forEach(o=>{
     const email=o.motorizadoEmail||"sin_asignar";
