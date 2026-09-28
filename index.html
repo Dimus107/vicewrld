@@ -181,7 +181,14 @@ textarea{resize:vertical;min-height:50px;}
     <label>DNI</label><input id="f_dni" inputmode="numeric">
     <label>Celular</label><input id="f_cel" inputmode="tel">
     <label>Talla</label><input id="f_talla">
+    <label>Cantidad de prendas</label><input id="f_cantidad" inputmode="numeric" placeholder="Ej: 1">
     <label>Monto a cobrar (S/)</label><input id="f_monto" inputmode="decimal">
+    <label>¿A dónde va este pedido?</label>
+    <div style="display:flex;gap:8px;margin-top:2px;">
+      <button type="button" id="zonaLimaBtn" style="flex:1;padding:11px;border-radius:10px;border:1.5px solid var(--line);background:var(--accent-grad);color:var(--accent-ink);font-weight:600;font-size:13.5px;cursor:pointer;">🏙️ Lima</button>
+      <button type="button" id="zonaProvinciaBtn" style="flex:1;padding:11px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-weight:600;font-size:13.5px;cursor:pointer;">📦 Provincia</button>
+    </div>
+    <p style="font-size:11.5px;color:var(--sub);margin:6px 0 0;">Provincia: solo tú lo ves. Ni el supervisor ni los motorizados podrán verlo (tú lo envías por agencia).</p>
     <label>Notas (opcional)</label><textarea id="f_notas"></textarea>
     <div class="sheet-actions"><button class="btn-cancel" id="cancelBtn">Cancelar</button><button class="btn-save" id="saveBtn">Guardar pedido</button></div>
     <p class="status-line" id="saveStatus"></p>
@@ -189,6 +196,12 @@ textarea{resize:vertical;min-height:50px;}
 
   <div id="modeLink" style="display:none;">
     <p style="font-size:13.5px;color:var(--sub);line-height:1.6;margin:2px 0 0;">Genera un enlace de un solo uso y envíaselo por WhatsApp. Tu cliente completa sus datos (sin el monto a cobrar, eso lo pones tú después) y aparece aquí como nuevo pedido. Apenas lo use, el enlace deja de funcionar.</p>
+    <label>¿A dónde va este pedido?</label>
+    <div style="display:flex;gap:8px;margin-top:2px;">
+      <button type="button" id="linkZonaLimaBtn" style="flex:1;padding:11px;border-radius:10px;border:1.5px solid var(--line);background:var(--accent-grad);color:var(--accent-ink);font-weight:600;font-size:13.5px;cursor:pointer;">🏙️ Lima</button>
+      <button type="button" id="linkZonaProvinciaBtn" style="flex:1;padding:11px;border-radius:10px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-weight:600;font-size:13.5px;cursor:pointer;">📦 Provincia</button>
+    </div>
+    <p style="font-size:11.5px;color:var(--sub);margin:6px 0 0;">Provincia: solo tú verás este pedido cuando el cliente lo llene.</p>
     <div id="linkResult" style="display:none;margin-top:14px;">
       <label>Enlace generado</label>
       <input id="linkUrl" readonly style="font-size:12.5px;">
@@ -502,7 +515,8 @@ function cardHtml(o, readOnly){
         <div>
           <div class="name">${esc(o.distrito)||"Sin distrito"} · ${esc(o.nombre)||"Sin nombre"}</div>
           ${o.origen==="cliente"?'<div style="font-size:10.5px;font-weight:700;color:var(--sub);margin-top:1px;">📝 Llenado por el cliente</div>':""}
-          <div class="info"><b>Talla:</b> ${esc(o.talla)||"-"}</div>
+          ${o.restringido?'<div style="font-size:10.5px;font-weight:700;color:var(--bad);margin-top:1px;">📦 PROVINCIA · solo tú la ves</div>':""}
+          <div class="info"><b>Talla:</b> ${esc(o.talla)||"-"} · <b>Cant.:</b> ${esc(o.cantidad)||"1"}</div>
           <div class="info"><b>Cobrar:</b> ${monto}</div>
           <div class="info"><b>Motorizado:</b> ${motoNombre?esc(motoNombre):"Sin asignar"}</div>
         </div>
@@ -545,6 +559,7 @@ function foldersHtml(){
           <div class="sumrow"><span>Tarifas</span><b>S/ ${Number(m.tarifas).toFixed(2)}</b></div>
           <div class="sumtotal">Deposita: S/ ${Number(m.deposito).toFixed(2)}</div></div>`).join("")}
         <div class="sumtotal">Total general: S/ ${Number(r.totalDeposito||0).toFixed(2)}</div>
+        <div class="sumrow" style="border-bottom:none;"><span>👕 Total de prendas</span><b>${r.totalPrendas||0}</b></div>
         ${myRole==="dueno"?(archived
           ? `<button class="unarchivebtn" data-unarchive="${k}" style="margin-top:12px;width:100%;padding:9px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;">📤 Desarchivar</button>`
           : `<button class="reopenbtn" data-reopen="${k}" style="margin-top:12px;width:100%;padding:9px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;">🔓 Reabrir este día</button>
@@ -721,10 +736,14 @@ document.getElementById("estSave").addEventListener("click", ()=>{
 
 /* ---------- NUEVO PEDIDO / EDITAR PEDIDO ---------- */
 const sheetBg=document.getElementById("sheetBg");
-const FIELD_IDS=["f_distrito","f_direccion","f_nombre","f_dni","f_cel","f_talla","f_monto","f_notas"];
+const FIELD_IDS=["f_distrito","f_direccion","f_nombre","f_dni","f_cel","f_talla","f_cantidad","f_monto","f_notas"];
 function resetSheetFields(){
   document.getElementById("f_quick").value="";
   FIELD_IDS.forEach(id=>document.getElementById(id).value="");
+  manualEsProvincia=false;
+  setZonaBtns(zonaLimaBtn,zonaProvinciaBtn,false);
+  linkEsProvincia=false;
+  setZonaBtns(linkZonaLimaBtn,linkZonaProvinciaBtn,false);
 }
 function showManualMode(){
   document.getElementById("modeManual").style.display="block";
@@ -737,6 +756,20 @@ function showLinkMode(){
   document.getElementById("linkUrl").value="";
   document.getElementById("linkStatus").textContent="";
 }
+let manualEsProvincia=false, linkEsProvincia=false;
+function setZonaBtns(limaBtn, provBtn, esProvincia){
+  limaBtn.style.background = esProvincia ? "var(--bg)" : "var(--accent-grad)";
+  limaBtn.style.color = esProvincia ? "var(--ink)" : "var(--accent-ink)";
+  provBtn.style.background = esProvincia ? "var(--accent-grad)" : "var(--bg)";
+  provBtn.style.color = esProvincia ? "var(--accent-ink)" : "var(--ink)";
+}
+const zonaLimaBtn=document.getElementById("zonaLimaBtn"), zonaProvinciaBtn=document.getElementById("zonaProvinciaBtn");
+zonaLimaBtn.addEventListener("click",()=>{ manualEsProvincia=false; setZonaBtns(zonaLimaBtn,zonaProvinciaBtn,false); });
+zonaProvinciaBtn.addEventListener("click",()=>{ manualEsProvincia=true; setZonaBtns(zonaLimaBtn,zonaProvinciaBtn,true); });
+const linkZonaLimaBtn=document.getElementById("linkZonaLimaBtn"), linkZonaProvinciaBtn=document.getElementById("linkZonaProvinciaBtn");
+linkZonaLimaBtn.addEventListener("click",()=>{ linkEsProvincia=false; setZonaBtns(linkZonaLimaBtn,linkZonaProvinciaBtn,false); });
+linkZonaProvinciaBtn.addEventListener("click",()=>{ linkEsProvincia=true; setZonaBtns(linkZonaLimaBtn,linkZonaProvinciaBtn,true); });
+
 document.getElementById("switchToLinkBtn").addEventListener("click", showLinkMode);
 document.getElementById("switchToManualBtn").addEventListener("click", showManualMode);
 document.getElementById("addBtn").addEventListener("click",()=>{
@@ -759,7 +792,7 @@ document.getElementById("linkGenBtn").addEventListener("click", async ()=>{
   const st=document.getElementById("linkStatus"); st.textContent="Generando...";
   try{
     const token=genToken();
-    await db.collection("enlaces").doc(token).set({creadoAt:Date.now(), creadoPor:myEmail, usado:false});
+    await db.collection("enlaces").doc(token).set({creadoAt:Date.now(), creadoPor:myEmail, usado:false, restringido:linkEsProvincia});
     const url = location.origin + "/formulario.html?t=" + token;
     document.getElementById("linkUrl").value = url;
     document.getElementById("linkResult").style.display="block";
@@ -794,8 +827,11 @@ function openEditSheet(id){
   document.getElementById("f_dni").value=o.dni||"";
   document.getElementById("f_cel").value=o.cel||"";
   document.getElementById("f_talla").value=o.talla||"";
+  document.getElementById("f_cantidad").value=o.cantidad||"";
   document.getElementById("f_monto").value=o.monto||"";
   document.getElementById("f_notas").value=o.notas||"";
+  manualEsProvincia = !!o.restringido;
+  setZonaBtns(zonaLimaBtn,zonaProvinciaBtn,manualEsProvincia);
   document.getElementById("saveStatus").textContent="";
   sheetBg.classList.add("open");
 }
@@ -836,6 +872,7 @@ function autofillFromQuickText(text){
     else if(label==="DNI") data.dni=value;
     else if(label.includes("CEL")||label.includes("TELEFONO")||label.includes("WHATSAPP")) data.cel=value;
     else if(label.includes("TALLA")) data.talla=value;
+    else if(label.includes("CANTIDAD")) data.cantidad=value;
     else if(label.includes("SALDO")||label.includes("MONTO")||label.includes("COBRAR")) data.monto=value;
   });
   if(data.distrito) document.getElementById("f_distrito").value=data.distrito;
@@ -844,6 +881,7 @@ function autofillFromQuickText(text){
   if(data.dni) document.getElementById("f_dni").value=data.dni;
   if(data.cel) document.getElementById("f_cel").value=data.cel.replace(/\D/g,"");
   if(data.talla) document.getElementById("f_talla").value=data.talla;
+  if(data.cantidad) document.getElementById("f_cantidad").value=data.cantidad.replace(/\D/g,"");
   if(data.monto){
     const num=data.monto.replace(/[^\d.,]/g,"").replace(",",".");
     if(num) document.getElementById("f_monto").value=num;
@@ -854,8 +892,8 @@ document.getElementById("f_quick").addEventListener("input", (e)=>autofillFromQu
 document.getElementById("saveBtn").addEventListener("click", async ()=>{
   const campos={distrito:document.getElementById("f_distrito").value.trim(),direccion:document.getElementById("f_direccion").value.trim(),
     nombre:document.getElementById("f_nombre").value.trim(),dni:document.getElementById("f_dni").value.trim(),cel:document.getElementById("f_cel").value.trim(),
-    talla:document.getElementById("f_talla").value.trim(),monto:document.getElementById("f_monto").value.trim(),
-    notas:document.getElementById("f_notas").value.trim()};
+    talla:document.getElementById("f_talla").value.trim(),cantidad:document.getElementById("f_cantidad").value.trim(),monto:document.getElementById("f_monto").value.trim(),
+    notas:document.getElementById("f_notas").value.trim(), restringido:manualEsProvincia};
   const statusEl=document.getElementById("saveStatus");
   if(!campos.nombre||!campos.direccion){ statusEl.textContent="Falta nombre o dirección."; return; }
   statusEl.textContent="Guardando...";
@@ -888,15 +926,17 @@ document.getElementById("delConfirm").addEventListener("click", async ()=>{
 function computeCierre(dayKey){
   const items=merged().filter(o=>o.estado==="entregado" && fechaEfectiva(o)===dayKey);
   const perMotorizado={};
+  let totalPrendas=0;
   items.forEach(o=>{
     const email=o.motorizadoEmail||"sin_asignar";
     if(!perMotorizado[email]) perMotorizado[email]={count:0,cobrado:0,tarifas:0,deposito:0};
     const cob=parseFloat(o.montoCobrado)||0, tar=parseFloat(o.tarifaDelivery)||0;
     perMotorizado[email].count++; perMotorizado[email].cobrado+=cob; perMotorizado[email].tarifas+=tar; perMotorizado[email].deposito+=(cob-tar);
+    totalPrendas += parseInt(o.cantidad)||1;
   });
   let totalCount=0,totalCobrado=0,totalTarifas=0,totalDeposito=0;
   Object.values(perMotorizado).forEach(m=>{totalCount+=m.count;totalCobrado+=m.cobrado;totalTarifas+=m.tarifas;totalDeposito+=m.deposito;});
-  return {perMotorizado, totalCount, totalCobrado, totalTarifas, totalDeposito};
+  return {perMotorizado, totalCount, totalCobrado, totalTarifas, totalDeposito, totalPrendas};
 }
 document.getElementById("closeDayBtn").addEventListener("click", async ()=>{
   const hoy=localDateKey(new Date());
@@ -908,7 +948,8 @@ document.getElementById("closeDayBtn").addEventListener("click", async ()=>{
       <div class="sumrow"><span>Cobrado</span><b>S/ ${m.cobrado.toFixed(2)}</b></div>
       <div class="sumrow"><span>Tarifas</span><b>S/ ${m.tarifas.toFixed(2)}</b></div>
       <div class="sumtotal">Deposita: S/ ${m.deposito.toFixed(2)}</div></div>`).join("") +
-    `<div class="sumtotal">Total general a depositar: S/ ${r.totalDeposito.toFixed(2)}</div>`;
+    `<div class="sumtotal">Total general a depositar: S/ ${r.totalDeposito.toFixed(2)}</div>
+     <div class="sumrow" style="border-bottom:none;"><span>👕 Total de prendas entregadas</span><b>${r.totalPrendas||0}</b></div>`;
   document.getElementById("sumBg").classList.add("open");
   try{ await db.collection("cierres").doc(hoy).set({...r, closedAt:Date.now(), closedBy:myEmail}); }
   catch(e){ sumStatus.textContent="No se pudo guardar el cierre."; console.error(e); }
@@ -1011,14 +1052,38 @@ document.getElementById("chatDelete").addEventListener("click", async ()=>{
   }catch(e){ st.textContent="No se pudo eliminar (verifica tu acceso)."; console.error(e); }
 });
 
+// Cada rol solo pide lo que las reglas de seguridad le permiten leer.
+// (Dueño: todo. Supervisor: todo menos provincia. Motorizado: solo lo suyo y nunca provincia.)
+function pedidosQueryForRole(){
+  const col = db.collection("pedidos");
+  if(myRole==="dueno") return col;
+  if(myRole==="supervisor") return col.where("restringido","==",false);
+  return col.where("motorizadoEmail","==",myEmail).where("restringido","==",false);
+}
+
+// Pedidos anteriores a esta función no tienen el campo "restringido". El dueño los
+// completa una sola vez (como "no restringido") para que los demás roles los sigan viendo.
+let backfillRunning=false;
+async function backfillRestringido(){
+  if(myRole!=="dueno" || backfillRunning) return;
+  const faltantes = pedidos.filter(p=>p.restringido===undefined);
+  if(!faltantes.length) return;
+  backfillRunning=true;
+  try{
+    for(let i=0;i<faltantes.length;i+=400){
+      const batch=db.batch();
+      faltantes.slice(i,i+400).forEach(p=>batch.update(db.collection("pedidos").doc(p.id),{restringido:false}));
+      await batch.commit();
+    }
+  }catch(e){ console.error("Error rellenando pedidos antiguos:", e); }
+  backfillRunning=false;
+}
+
 function subscribe(){
   requestNotifPermission();
   db.collection("usuarios").onSnapshot(snap=>{ const m={}; snap.docs.forEach(d=>m[d.id]=d.data()); usuariosMap=m; render(); });
 
-  const pedidosQuery = myRole==="motorizado"
-    ? db.collection("pedidos").where("motorizadoEmail","==",myEmail)
-    : db.collection("pedidos");
-  pedidosQuery.onSnapshot(snap=>{ pedidos=snap.docs.map(d=>({id:d.id,...d.data()})); render(); },
+  pedidosQueryForRole().onSnapshot(snap=>{ pedidos=snap.docs.map(d=>({id:d.id,...d.data()})); render(); backfillRestringido(); },
     err=>console.error("Error leyendo pedidos:", err));
 
   db.collection("estados").onSnapshot(snap=>{
@@ -1044,7 +1109,7 @@ async function forceRefresh(){
   try{
     const [uSnap,pSnap,eSnap,cSnap] = await Promise.all([
       db.collection("usuarios").get({source:"server"}),
-      db.collection("pedidos").get({source:"server"}),
+      pedidosQueryForRole().get({source:"server"}),
       db.collection("estados").get({source:"server"}),
       db.collection("cierres").get({source:"server"})
     ]);

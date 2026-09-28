@@ -66,6 +66,7 @@ button:disabled{opacity:.6;cursor:default;}
     <label>Nombre completo</label><input id="f_nombre">
     <label>Celular (WhatsApp)</label><input id="f_cel" inputmode="tel">
     <label>Talla</label><input id="f_talla">
+    <label>Cantidad de prendas</label><input id="f_cantidad" inputmode="numeric" placeholder="Ej: 1">
     <label>Notas (opcional)</label><textarea id="f_notas"></textarea>
     <button id="sendBtn">Enviar mis datos</button>
     <p class="status" id="formStatus"></p>
@@ -105,6 +106,7 @@ function showState(id){
 const params = new URLSearchParams(location.search);
 const token = params.get("t");
 
+let enlaceRestringido = false;
 async function init(){
   if(!token){ showState("stateInvalid"); return; }
   let doc;
@@ -117,6 +119,7 @@ async function init(){
   }
   if(!doc.exists){ showState("stateInvalid"); return; }
   if(doc.data().usado){ showState("stateUsed"); return; }
+  enlaceRestringido = doc.data().restringido === true;
   showState("stateForm");
 }
 init();
@@ -128,6 +131,7 @@ function mensajeWhatsapp(c){
   t += `Nombre: ${c.nombre||"-"}\n`;
   t += `Celular: ${c.cel||"-"}\n`;
   t += `Talla: ${c.talla||"-"}\n`;
+  t += `Cantidad: ${c.cantidad||"1"}\n`;
   if(c.notas) t += `Notas: ${c.notas}\n`;
   return t;
 }
@@ -140,6 +144,7 @@ document.getElementById("sendBtn").addEventListener("click", async ()=>{
     nombre: document.getElementById("f_nombre").value.trim(),
     cel: document.getElementById("f_cel").value.trim(),
     talla: document.getElementById("f_talla").value.trim(),
+    cantidad: document.getElementById("f_cantidad").value.trim(),
     notas: document.getElementById("f_notas").value.trim()
   };
   if(!campos.nombre || !campos.direccion || !campos.cel){
@@ -157,7 +162,7 @@ document.getElementById("sendBtn").addEventListener("click", async ()=>{
     const pedidoRef=db.collection("pedidos").doc();
     const enlaceRef=db.collection("enlaces").doc(token);
     const batch=db.batch();
-    batch.set(pedidoRef, {...campos, tipo:"", createdAt:now, dateKey:localDateKey(new Date(now)), motorizadoEmail:null, enlaceToken:token, origen:"cliente"});
+    batch.set(pedidoRef, {...campos, tipo:"", createdAt:now, dateKey:localDateKey(new Date(now)), motorizadoEmail:null, enlaceToken:token, origen:"cliente", restringido:enlaceRestringido});
     batch.update(enlaceRef, {usado:true, pedidoId:pedidoRef.id, usadoAt:now});
     await batch.commit();
     const waUrl = "https://wa.me/51914212427?text="+encodeURIComponent(mensajeWhatsapp(campos));
