@@ -604,7 +604,8 @@ function foldersHtml(){
         <div class="sumtotal">Total general: S/ ${Number(r.totalDeposito||0).toFixed(2)}</div>
         <div class="sumrow" style="border-bottom:none;"><span>👕 Total de prendas</span><b>${r.totalPrendas||0}</b></div>
         ${myRole==="dueno"?(archived
-          ? `<button class="unarchivebtn" data-unarchive="${k}" style="margin-top:12px;width:100%;padding:9px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;">📤 Desarchivar</button>`
+          ? `<button class="unarchivebtn" data-unarchive="${k}" style="margin-top:12px;width:100%;padding:9px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;">📤 Desarchivar</button>
+             <button class="deldaybtn" data-delday="${k}" style="margin-top:8px;width:100%;padding:9px;border-radius:9px;border:1px solid var(--bad);background:none;color:var(--bad);font-weight:600;cursor:pointer;">🗑 Eliminar este día</button>`
           : `<button class="reopenbtn" data-reopen="${k}" style="margin-top:12px;width:100%;padding:9px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;">🔓 Reabrir este día</button>
              <button class="archivebtn" data-archive="${k}" style="margin-top:8px;width:100%;padding:9px;border-radius:9px;border:1px solid var(--line);background:var(--bg);color:var(--ink);cursor:pointer;">📦 Archivar (ya no estorba en la lista)</button>`
         ):""}
@@ -641,6 +642,32 @@ function render(){
   document.querySelectorAll(".reopenbtn").forEach(b=>b.addEventListener("click", async ()=>{ await db.collection("cierres").doc(b.dataset.reopen).delete(); openFolder=null; }));
   document.querySelectorAll(".archivebtn").forEach(b=>b.addEventListener("click", async ()=>{ await db.collection("cierres").doc(b.dataset.archive).set({archivado:true},{merge:true}); openFolder=null; }));
   document.querySelectorAll(".unarchivebtn").forEach(b=>b.addEventListener("click", async ()=>{ await db.collection("cierres").doc(b.dataset.unarchive).set({archivado:false},{merge:true}); openArchived=null; }));
+  document.querySelectorAll(".deldaybtn").forEach(b=>b.addEventListener("click", async ()=>{
+    const k=b.dataset.delday;
+    const items=merged().filter(o=>o.estado==="entregado" && fechaEfectiva(o)===k);
+    const msg = items.length
+      ? `¿Eliminar el día ${k}?\n\nSe borrarán el resumen y sus ${items.length} pedido(s) entregado(s), con sus comentarios y fotos. Dejarán de contar en Cuentas.\n\nNo se puede deshacer.`
+      : `¿Eliminar el día ${k}?\n\nSe borrará el resumen archivado. No se puede deshacer.`;
+    if(!confirm(msg)) return;
+    b.disabled=true; b.textContent="Eliminando...";
+    try{
+      for(let i=0;i<items.length;i+=100){
+        const batch=db.batch();
+        items.slice(i,i+100).forEach(o=>{
+          batch.delete(db.collection("pedidos").doc(o.id));
+          batch.delete(db.collection("estados").doc(o.id));
+          batch.delete(db.collection("chats").doc(o.id));
+        });
+        await batch.commit();
+      }
+      await db.collection("cierres").doc(k).delete();
+      openArchived=null;
+    }catch(e){
+      console.error("Error eliminando día:", e);
+      alert("No se pudo eliminar el día completo. Revisa tu conexión e inténtalo de nuevo.");
+      b.disabled=false; b.textContent="🗑 Eliminar este día";
+    }
+  }));
   const ft=document.getElementById("folderToggle");
   if(ft) ft.addEventListener("click",()=>{foldersOpen=!foldersOpen;render();});
   const at=document.getElementById("archivedToggle");
