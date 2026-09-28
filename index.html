@@ -151,7 +151,6 @@ textarea{resize:vertical;min-height:50px;}
     <div style="display:flex;gap:8px;" class="headRight">
       <button class="closebtn" id="installBtnHeader" style="display:none;">📲 Instalar</button>
       <button class="closebtn" id="refreshBtn" title="Actualizar">🔄</button>
-      <button class="closebtn" id="reportBtn" style="display:none;">📊 Cuentas</button>
       <button class="closebtn" id="closeDayBtn" style="display:none;">Cerrar día</button>
       <div class="avatarChip" id="avatarChip">?</div>
     </div>
@@ -191,7 +190,7 @@ textarea{resize:vertical;min-height:50px;}
     <button type="button" id="switchToLinkBtn" style="width:100%;margin-top:0;padding:11px;border-radius:14px;border:1.5px dashed #9ab8a3;background:var(--bg);color:var(--ink);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;">🔗 Enviar enlace para que el cliente llene sus datos</button>
     <label>⚡ Pegar datos (opcional) — se autocompleta abajo</label>
     <textarea id="f_quick" rows="5" placeholder="ATE - MAX ARROYO&#10;&#10;DIRECCIÓN: ...&#10;DNI: ...&#10;CEL: ...&#10;TALLA: ...&#10;SALDO: S/..."></textarea>
-    <label>Distrito / Provincia</label><input id="f_distrito">
+    <label>Distrito / Provincia</label><input id="f_distrito" list="dlDistritos" autocomplete="off"><datalist id="dlDistritos"><option value="Cercado de Lima"><option value="Miraflores"><option value="San Isidro"><option value="San Borja"><option value="Surco"><option value="Barranco"><option value="Lince"><option value="Jesús María"><option value="Magdalena del Mar"><option value="Pueblo Libre"><option value="San Miguel"><option value="La Victoria"><option value="Breña"><option value="Rímac"><option value="El Agustino"><option value="Surquillo"><option value="San Luis"><option value="Comas"><option value="Los Olivos"><option value="Independencia"><option value="San Martín de Porres"><option value="Carabayllo"><option value="Puente Piedra"><option value="Chorrillos"><option value="Villa María del Triunfo"><option value="San Juan de Miraflores"><option value="Villa El Salvador"><option value="San Juan de Lurigancho"><option value="Ate"><option value="La Molina"><option value="Santa Anita"><option value="Callao"></datalist>
     <label>Dirección exacta</label><input id="f_direccion">
     <div id="agenciaWrap" style="display:none;"><label>Agencia (envío a provincia)</label><input id="f_agencia"></div>
     <label>Nombre</label><input id="f_nombre">
@@ -256,6 +255,7 @@ textarea{resize:vertical;min-height:50px;}
   <label>Nombre a mostrar</label><input id="p_nombre" placeholder="Tu nombre">
   <div class="sheet-actions"><button class="btn-cancel" id="profileCancel">Cancelar</button><button class="btn-save" id="profileSave">Guardar</button></div>
   <p class="status-line" id="profileStatus"></p>
+  <button id="reportBtn" style="display:none;margin-top:14px;width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:var(--bg);color:var(--ink);font-size:14px;font-weight:600;cursor:pointer;">📊 Cuentas</button>
   <button id="logoutBtn" style="margin-top:14px;width:100%;padding:12px;border-radius:12px;border:1px solid var(--line);background:none;color:var(--bad);font-size:14px;cursor:pointer;">🚪 Cerrar sesión</button>
 </div></div>
 
@@ -462,7 +462,7 @@ auth.onAuthStateChanged(async user=>{
   document.getElementById("list").style.display="block";
   document.getElementById("addBtn").style.display = myRole==="dueno" ? "block" : "none";
   document.getElementById("closeDayBtn").style.display = (myRole==="dueno"||myRole==="supervisor") ? "inline-block" : "none";
-  document.getElementById("reportBtn").style.display = myRole==="dueno" ? "inline-block" : "none";
+  document.getElementById("reportBtn").style.display = myRole==="dueno" ? "block" : "none";
   const avatarColors={dueno:"#161c18",supervisor:"#ece0fb",motorizado:"#cdeffd"};
   const chip=document.getElementById("avatarChip");
   const nombreYo=(doc.data().nombre||myEmail||"?").trim();
@@ -1008,6 +1008,15 @@ document.getElementById("closeDayBtn").addEventListener("click", async ()=>{
 });
 document.getElementById("sumClose").addEventListener("click",()=>document.getElementById("sumBg").classList.remove("open"));
 
+
+/* ---------- DISTRITOS DE LIMA (para agrupar bien en las cuentas) ---------- */
+const DISTRITOS_LIMA = ["Ancón", "Ate", "Barranco", "Breña", "Carabayllo", "Cercado de Lima", "Chaclacayo", "Chorrillos", "Cieneguilla", "Comas", "El Agustino", "Independencia", "Jesús María", "La Molina", "La Victoria", "Lince", "Los Olivos", "Lurigancho-Chosica", "Lurín", "Magdalena del Mar", "Miraflores", "Pachacámac", "Pucusana", "Pueblo Libre", "Puente Piedra", "Punta Hermosa", "Punta Negra", "Rímac", "San Bartolo", "San Borja", "San Isidro", "San Juan de Lurigancho", "San Juan de Miraflores", "San Luis", "San Martín de Porres", "San Miguel", "Santa Anita", "Santa María del Mar", "Santa Rosa", "Santiago de Surco", "Surquillo", "Villa El Salvador", "Villa María del Triunfo", "Callao", "Bellavista", "Carmen de la Legua Reynoso", "La Perla", "La Punta", "Mi Perú", "Ventanilla"];
+const ALIAS_DISTRITO = {"sjl":"San Juan de Lurigancho","smp":"San Martín de Porres","sjm":"San Juan de Miraflores","ves":"Villa El Salvador","vmt":"Villa María del Triunfo","surco":"Santiago de Surco","cercado":"Cercado de Lima","lima":"Cercado de Lima","lima cercado":"Cercado de Lima","chosica":"Lurigancho-Chosica","lurigancho":"Lurigancho-Chosica","vitarte":"Ate","ate vitarte":"Ate","magdalena":"Magdalena del Mar","stamaria":"Santa María del Mar","los olivos":"Los Olivos","molina":"La Molina","victoria":"La Victoria","agustino":"El Agustino","carmen de la legua":"Carmen de la Legua Reynoso","miperu":"Mi Perú"};
+function _kd(s){ return (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim(); }
+const _MAPA_DIST = (()=>{ const m={}; DISTRITOS_LIMA.forEach(d=>m[_kd(d)]=d); Object.entries(ALIAS_DISTRITO).forEach(([k,v])=>m[_kd(k)]=v); return m; })();
+// Devuelve el nombre oficial del distrito, o "Otros / sin clasificar" si el texto no coincide con ninguno.
+function distritoOficial(txt){ return _MAPA_DIST[_kd(txt)] || "Otros / sin clasificar"; }
+
 /* ---------- CUENTAS POR RANGO DE FECHAS ---------- */
 // Cuenta solo pedidos ENTREGADOS, por su fecha de entrega (igual que el cierre del día).
 // Ventas = monto cobrado al cliente. Neto = ventas - tarifas de delivery.
@@ -1018,7 +1027,7 @@ function computeRango(desde, hasta){
     return k>=desde && k<=hasta;
   });
   const t={count:0,prendas:0,ventas:0,tarifas:0,neto:0};
-  const porMoto={}, porDia={}, zona={lima:{count:0,ventas:0},prov:{count:0,ventas:0}};
+  const porMoto={}, porDia={}, zona={lima:{count:0,prendas:0,ventas:0},prov:{count:0,prendas:0,ventas:0}}, porDistrito={};
   items.forEach(o=>{
     const cob=parseFloat(o.montoCobrado)||0, tar=parseFloat(o.tarifaDelivery)||0, pr=parseInt(o.cantidad)||1;
     t.count++; t.prendas+=pr; t.ventas+=cob; t.tarifas+=tar; t.neto+=cob-tar;
@@ -1028,13 +1037,14 @@ function computeRango(desde, hasta){
     const k=fechaEfectiva(o);
     const d=porDia[k]||(porDia[k]={count:0,prendas:0,ventas:0,neto:0});
     d.count++; d.prendas+=pr; d.ventas+=cob; d.neto+=cob-tar;
-    const z=o.restringido?zona.prov:zona.lima; z.count++; z.ventas+=cob;
+    const z=o.restringido?zona.prov:zona.lima; z.count++; z.prendas+=pr; z.ventas+=cob;
+    if(!o.restringido){ const dn=distritoOficial(o.distrito); const dd=porDistrito[dn]||(porDistrito[dn]={count:0,prendas:0,ventas:0}); dd.count++; dd.prendas+=pr; dd.ventas+=cob; }
   });
-  return {t, porMoto, porDia, zona};
+  return {t, porMoto, porDia, zona, porDistrito};
 }
 function fmtS(n){ return "S/ "+(Number(n)||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}); }
 function fmtDiaCorto(k){ const [y,m,d]=k.split("-"); return d+"/"+m+"/"+y; }
-let lastRngText="";
+let lastRngText=""; let rngLimaOpen=false;
 function renderRango(){
   let desde=document.getElementById("rng_desde").value, hasta=document.getElementById("rng_hasta").value;
   const body=document.getElementById("rngBody");
@@ -1051,7 +1061,13 @@ function renderRango(){
       <div class="sumtotal">Deposita: ${fmtS(m.neto)}</div></div>`).join("");
   const dias=Object.keys(r.porDia).sort();
   const diaRows=dias.map(k=>{const d=r.porDia[k];return `<div class="rng-day"><div>${fmtDiaCorto(k)}<small>${d.count} entrega(s) · ${d.prendas} prenda(s)</small></div><div style="text-align:right;"><b>${fmtS(d.ventas)}</b><small>neto ${fmtS(d.neto)}</small></div></div>`;}).join("");
-  const hayProv=r.zona.prov.count>0;
+  const distRows=Object.entries(r.porDistrito).sort((a,b)=>b[1].count-a[1].count||b[1].prendas-a[1].prendas||b[1].ventas-a[1].ventas).map(([n,d],i)=>`<div class="rng-day"><div>${i+1}. ${esc(n)}<small>${d.count} pedido(s) · ${d.prendas} prenda(s)</small></div><div style="text-align:right;"><b>${fmtS(d.ventas)}</b></div></div>`).join("");
+  const zonaHtml=`<div class="rng-h">POR ZONA</div>
+    <div class="rng-kpis" style="margin-top:6px;">
+      <div class="rng-kpi"><span>🏙️ Lima</span><b>${r.zona.lima.count} pedido(s)</b><span style="margin-top:2px;">${r.zona.lima.prendas} prenda(s) · ${fmtS(r.zona.lima.ventas)}</span></div>
+      <div class="rng-kpi"><span>📦 Provincias</span><b>${r.zona.prov.count} pedido(s)</b><span style="margin-top:2px;">${r.zona.prov.prendas} prenda(s) · ${fmtS(r.zona.prov.ventas)}</span></div>
+    </div>
+    ${r.zona.lima.count?`<details ${rngLimaOpen?"open":""} ontoggle="rngLimaOpen=this.open" style="margin-top:8px;"><summary style="cursor:pointer;font-size:13px;font-weight:700;padding:8px 0;">🏙️ Ver ventas por distrito de Lima</summary>${distRows}</details>`:""}`;
   body.innerHTML=`
     <div class="rng-kpis">
       <div class="rng-kpi big"><span>Ventas cobradas</span><b>${fmtS(r.t.ventas)}</b></div>
@@ -1059,13 +1075,15 @@ function renderRango(){
       <div class="rng-kpi"><span>Neto (ventas − tarifas)</span><b>${fmtS(r.t.neto)}</b></div>
       <div class="rng-kpi"><span>Pedidos entregados</span><b>${r.t.count}</b></div>
       <div class="rng-kpi"><span>👕 Prendas vendidas</span><b>${r.t.prendas}</b></div>
-      ${hayProv?`<div class="rng-kpi"><span>🏙️ Lima</span><b>${fmtS(r.zona.lima.ventas)}</b></div><div class="rng-kpi"><span>📦 Provincia</span><b>${fmtS(r.zona.prov.ventas)}</b></div>`:""}
     </div>
+    ${zonaHtml}
     <div class="rng-h">POR MOTORIZADO</div>${motoRows}
     <div class="rng-h">POR DÍA</div>${diaRows}`;
   let txt=`📊 *VICEWRLD · Cuentas*\n${fmtDiaCorto(desde)} al ${fmtDiaCorto(hasta)}\n\n`;
   txt+=`Ventas cobradas: ${fmtS(r.t.ventas)}\nTarifas delivery: ${fmtS(r.t.tarifas)}\nNeto: ${fmtS(r.t.neto)}\nPedidos entregados: ${r.t.count}\nPrendas vendidas: ${r.t.prendas}\n`;
-  if(hayProv) txt+=`Lima: ${fmtS(r.zona.lima.ventas)} · Provincia: ${fmtS(r.zona.prov.ventas)}\n`;
+  txt+=`\nLima: ${r.zona.lima.count} pedidos · ${r.zona.lima.prendas} prendas · ${fmtS(r.zona.lima.ventas)}\nProvincias: ${r.zona.prov.count} pedidos · ${r.zona.prov.prendas} prendas · ${fmtS(r.zona.prov.ventas)}\n`;
+  const topD=Object.entries(r.porDistrito).sort((a,b)=>b[1].count-a[1].count||b[1].prendas-a[1].prendas);
+  if(topD.length) txt+=`\n*Lima por distrito*\n`+topD.map(([n,d])=>`${n}: ${d.count} pedidos · ${d.prendas} prendas · ${fmtS(d.ventas)}`).join("\n")+"\n";
   txt+=`\n*Por motorizado*\n`+Object.entries(r.porMoto).map(([e,m])=>`${nom(e)}: ${m.count} entregas · cobró ${fmtS(m.ventas)} · deposita ${fmtS(m.neto)}`).join("\n");
   lastRngText=txt;
 }
@@ -1080,6 +1098,7 @@ function setRango(kind){
   renderRango();
 }
 document.getElementById("reportBtn").addEventListener("click",()=>{
+  document.getElementById("profileBg").classList.remove("open");
   if(!document.getElementById("rng_desde").value) setRango("mes"); else renderRango();
   document.getElementById("rngStatus").textContent="";
   document.getElementById("rngBg").classList.add("open");

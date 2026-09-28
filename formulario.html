@@ -38,6 +38,12 @@ button:disabled{opacity:.6;cursor:default;}
 .center .big{font-size:34px;margin-bottom:6px;}
 .center h1{margin-bottom:8px;}
 .hidden{display:none;}
+.ac{position:relative;}
+.ac-list{list-style:none;margin:4px 0 0;padding:4px;position:absolute;left:0;right:0;top:100%;z-index:20;max-height:220px;overflow-y:auto;background:var(--card);border:1.5px solid var(--line);border-radius:14px;box-shadow:var(--shadow);}
+.ac-list li{padding:10px 12px;border-radius:10px;font-size:14px;cursor:pointer;}
+.ac-list li.on,.ac-list li:active{background:var(--bg2);}
+.ac-list li b{font-weight:700;}
+.ac-list li.none{color:var(--sub);cursor:default;font-size:13px;}
 </style>
 </head>
 <body>
@@ -69,7 +75,7 @@ button:disabled{opacity:.6;cursor:default;}
     <p class="sub">Estos datos se envían directo a VICEWRLD para tu pedido.</p>
 
     <div id="fieldsLima">
-      <label>DISTRITO:</label><input id="f_distrito">
+      <label>DISTRITO:</label><div class="ac"><input id="f_distrito" autocomplete="off" autocapitalize="words" placeholder="Escribe y elige tu distrito"><ul class="ac-list hidden" id="ac_f_distrito"></ul></div>
       <label>DIRECCIÓN:</label><input id="f_direccion">
       <label>NOMBRE:</label><input id="f_nombre">
       <label>CEL:</label><input id="f_cel" inputmode="tel">
@@ -79,7 +85,7 @@ button:disabled{opacity:.6;cursor:default;}
     </div>
 
     <div id="fieldsProvincia" class="hidden">
-      <label>PROVINCIA:</label><input id="p_provincia">
+      <label>PROVINCIA:</label><div class="ac"><input id="p_provincia" autocomplete="off" autocapitalize="words" placeholder="Escribe tu provincia"><ul class="ac-list hidden" id="ac_p_provincia"></ul></div>
       <label>AGENCIA :</label><input id="p_agencia">
       <label>NOMBRE:</label><input id="p_nombre">
       <label>DNI O CE:</label><input id="p_dni">
@@ -117,6 +123,64 @@ const db = firebase.firestore();
 
 function pad(n){return n<10?"0"+n:""+n;}
 function localDateKey(d){d=d||new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+
+
+/* ---------- BUSCADOR DE DISTRITOS / PROVINCIAS ---------- */
+const DISTRITOS = ["Cercado de Lima", "Miraflores", "San Isidro", "San Borja", "Surco", "Barranco", "Lince", "Jesús María", "Magdalena del Mar", "Pueblo Libre", "San Miguel", "La Victoria", "Breña", "Rímac", "El Agustino", "Surquillo", "San Luis", "Comas", "Los Olivos", "Independencia", "San Martín de Porres", "Carabayllo", "Puente Piedra", "Chorrillos", "Villa María del Triunfo", "San Juan de Miraflores", "Villa El Salvador", "San Juan de Lurigancho", "Ate", "La Molina", "Santa Anita", "Callao"];
+const PROVINCIAS = ["Bagua", "Bongará", "Chachapoyas", "Condorcanqui", "Luya", "Rodríguez de Mendoza", "Utcubamba", "Aija", "Antonio Raymondi", "Asunción", "Bolognesi", "Carhuaz", "Carlos Fermín Fitzcarrald", "Casma", "Corongo", "Huaraz", "Huari", "Huarmey", "Huaylas", "Mariscal Luzuriaga", "Ocros", "Pallasca", "Pomabamba", "Recuay", "Santa", "Sihuas", "Yungay", "Abancay", "Andahuaylas", "Antabamba", "Aymaraes", "Cotabambas", "Chincheros", "Grau", "Arequipa", "Camaná", "Caravelí", "Castilla", "Caylloma", "Condesuyos", "Islay", "La Unión", "Cangallo", "Huamanga", "Huanca Sancos", "Huanta", "La Mar", "Lucanas", "Parinacochas", "Páucar del Sara Sara", "Sucre", "Víctor Fajardo", "Vilcas Huamán", "Cajabamba", "Cajamarca", "Celendín", "Chota", "Contumazá", "Cutervo", "Hualgayoc", "Jaén", "San Ignacio", "San Marcos", "San Miguel", "San Pablo", "Santa Cruz", "Acomayo", "Anta", "Calca", "Canas", "Canchis", "Chumbivilcas", "Cusco", "Espinar", "La Convención", "Paruro", "Paucartambo", "Quispicanchi", "Urubamba", "Acobamba", "Angaraes", "Castrovirreyna", "Churcampa", "Huancavelica", "Huaytará", "Tayacaja", "Ambo", "Dos de Mayo", "Huacaybamba", "Huamalíes", "Huánuco", "Lauricocha", "Leoncio Prado", "Marañón", "Pachitea", "Puerto Inca", "Yarowilca", "Chincha", "Ica", "Nazca", "Palpa", "Pisco", "Chanchamayo", "Chupaca", "Concepción", "Huancayo", "Jauja", "Junín", "Satipo", "Tarma", "Yauli", "Ascope", "Bolívar", "Chepén", "Gran Chimú"];
+const kd = s => (s||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim();
+function buscar(lista, q){
+  q = kd(q); if(!q) return [];
+  const ini=[], med=[];
+  lista.forEach(n=>{
+    const k=kd(n);
+    if(k.startsWith(q)) ini.push(n);
+    else if(k.split(/[\s-]+/).some(w=>w.startsWith(q)) || k.includes(q)) med.push(n);
+  });
+  return ini.concat(med).slice(0,8);
+}
+function exacto(lista, txt){ const k=kd(txt); return lista.find(n=>kd(n)===k) || null; }
+function activarBuscador(inputId, lista, soloLista){
+  const inp=document.getElementById(inputId), ul=document.getElementById("ac_"+inputId);
+  let idx=-1, items=[];
+  const cerrar=()=>{ ul.classList.add("hidden"); idx=-1; };
+  const elegir=n=>{ inp.value=n; cerrar(); };
+  function pintar(){
+    items=buscar(lista, inp.value);
+    if(!inp.value.trim()){ cerrar(); return; }
+    ul.innerHTML="";
+    if(!items.length){
+      if(soloLista){ const li=document.createElement("li"); li.className="none"; li.textContent="No hay coincidencias en la lista"; ul.appendChild(li); ul.classList.remove("hidden"); }
+      else cerrar();
+      return;
+    }
+    items.forEach((n,i)=>{
+      const li=document.createElement("li"); li.textContent=n;
+      li.addEventListener("mousedown",e=>{ e.preventDefault(); elegir(n); });
+      li.addEventListener("touchstart",()=>{ li._t=Date.now(); },{passive:true});
+      li.addEventListener("touchend",e=>{ e.preventDefault(); elegir(n); });
+      ul.appendChild(li);
+    });
+    idx=-1; ul.classList.remove("hidden");
+  }
+  inp.addEventListener("input", pintar);
+  inp.addEventListener("focus", pintar);
+  inp.addEventListener("blur", ()=>{
+    setTimeout(cerrar,120);
+    const ex=exacto(lista, inp.value); if(ex) inp.value=ex;
+  });
+  inp.addEventListener("keydown", e=>{
+    const lis=[...ul.querySelectorAll("li:not(.none)")];
+    if(e.key==="ArrowDown"&&lis.length){ e.preventDefault(); idx=(idx+1)%lis.length; }
+    else if(e.key==="ArrowUp"&&lis.length){ e.preventDefault(); idx=(idx-1+lis.length)%lis.length; }
+    else if(e.key==="Enter"&&idx>=0&&lis[idx]){ e.preventDefault(); elegir(items[idx]); return; }
+    else if(e.key==="Escape"){ cerrar(); return; }
+    else return;
+    lis.forEach((li,i)=>li.classList.toggle("on",i===idx));
+  });
+}
+activarBuscador("f_distrito", DISTRITOS, true);
+activarBuscador("p_provincia", PROVINCIAS, false);
 
 function showState(id){
   ["stateLoading","stateInvalid","stateUsed","stateForm","stateDone"].forEach(s=>{
@@ -198,10 +262,14 @@ document.getElementById("sendBtn").addEventListener("click", async ()=>{
       statusEl.textContent="Falta nombre, agencia o celular.";
       return;
     }
+  } else if(!exacto(DISTRITOS, campos.distrito)){
+    statusEl.textContent="Elige tu distrito de las opciones que aparecen al escribir.";
+    return;
   } else if(!campos.nombre || !campos.direccion || !campos.cel){
     statusEl.textContent="Falta nombre, dirección o celular.";
     return;
   }
+  if(!enlaceRestringido) campos.distrito=exacto(DISTRITOS, campos.distrito);
   const btn=document.getElementById("sendBtn");
   btn.disabled=true;
   statusEl.textContent="Enviando...";
