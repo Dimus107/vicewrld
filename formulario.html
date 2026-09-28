@@ -3,6 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#eef6f0" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12161a" media="(prefers-color-scheme: dark)">
 <title>VICEWRLD · Completa tus datos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -10,11 +13,14 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <style>
-:root{--bg:#eef6f0;--bg2:#e3f0e6;--card:#fff;--ink:#161c18;--sub:#748078;--line:#e2ece3;--accent-grad:linear-gradient(135deg,#2b332d,#0c0f0d);--bad:#c23b3b;--ok:#1a7a45;
+:root{color-scheme:light dark;--btn-ink:#fff;--bg:#eef6f0;--bg2:#e3f0e6;--card:#fff;--ink:#161c18;--sub:#748078;--line:#e2ece3;--accent-grad:linear-gradient(135deg,#2b332d,#0c0f0d);--bad:#c23b3b;--ok:#1a7a45;
 --shadow:0 10px 26px rgba(30,50,35,.08);
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#12161a;--bg2:#171b1f;--card:#1d2226;--ink:#f2f4f2;--sub:#9aa39d;--line:#2b3630;--accent-grad:linear-gradient(135deg,#ffffff,#cfd6cf);--shadow:0 10px 26px rgba(0,0,0,.35);}}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#12161a;--bg2:#171b1f;--card:#1d2226;--ink:#f2f4f2;--sub:#9aa39d;--line:#2b3630;--accent-grad:linear-gradient(135deg,#ffffff,#cfd6cf);--btn-ink:#12161a;--bad:#f2948a;--ok:#5fd98a;--shadow:0 10px 26px rgba(0,0,0,.35);}
+.logo img{filter:invert(1);}
+input::placeholder,textarea::placeholder{color:var(--sub);opacity:.7;}}
 *{box-sizing:border-box;}
+:root[data-theme="light"]{color-scheme:light;}
 body{margin:0;font-family:'Poppins',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:radial-gradient(circle at 10% 0%, var(--bg2), var(--bg) 55%);color:var(--ink);min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;}
 .wrap{max-width:400px;width:100%;}
 .logo{display:block;text-align:center;margin-bottom:14px;}
@@ -23,9 +29,9 @@ body{margin:0;font-family:'Poppins',-apple-system,BlinkMacSystemFont,"Segoe UI",
 h1{font-size:17px;margin:0 0 4px;font-weight:700;}
 .sub{color:var(--sub);font-size:13.5px;margin:0 0 18px;line-height:1.5;}
 label{display:block;font-size:12px;color:var(--sub);margin:14px 0 6px;font-weight:600;}
-input,textarea{width:100%;padding:12px 13px;border-radius:14px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-size:14.5px;font-family:inherit;}
+input,textarea{-webkit-appearance:none;appearance:none;width:100%;padding:12px 13px;border-radius:14px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-size:14.5px;font-family:inherit;}
 textarea{resize:vertical;min-height:60px;}
-button{width:100%;padding:14px;margin-top:20px;border-radius:16px;border:none;background:var(--accent-grad);color:#fff;font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 8px 20px rgba(20,30,22,.22);font-family:inherit;}
+button{width:100%;padding:14px;margin-top:20px;border-radius:16px;border:none;background:var(--accent-grad);color:var(--btn-ink);font-weight:700;font-size:15px;cursor:pointer;box-shadow:0 8px 20px rgba(20,30,22,.22);font-family:inherit;}
 button:disabled{opacity:.6;cursor:default;}
 .status{margin-top:12px;text-align:center;font-size:13px;min-height:18px;color:var(--bad);}
 .center{text-align:center;padding:20px 4px;}

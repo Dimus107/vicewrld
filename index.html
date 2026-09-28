@@ -17,11 +17,13 @@
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.13.0/firebase-firestore-compat.js"></script>
 <style>
-:root{--bg:#eef6f0;--bg2:#e3f0e6;--card:#fff;--ink:#161c18;--sub:#748078;--line:#e2ece3;--accent:#161c18;--accent-ink:#fff;--accent-grad:linear-gradient(135deg,#2b332d,#0c0f0d);
+:root{color-scheme:light dark;--bg:#eef6f0;--bg2:#e3f0e6;--card:#fff;--ink:#161c18;--sub:#748078;--line:#e2ece3;--accent:#161c18;--accent-ink:#fff;--accent-grad:linear-gradient(135deg,#2b332d,#0c0f0d);
 --pend:#b8860b;--pend-bg:#fdf1d6;--pend-solid:#f5c451;--ok:#1a7a45;--ok-bg:#dcf3e3;--bad:#c23b3b;--bad-bg:#fbe0df;--re:#5b5bd6;--re-bg:#e7e5fc;
 --shadow:0 10px 26px rgba(30,50,35,.08);
 box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);}
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#12161a;--bg2:#171b1f;--card:#1d2226;--ink:#f2f4f2;--sub:#9aa39d;--line:#2b3630;--accent:#f2f4f2;--accent-ink:#12161a;--accent-grad:linear-gradient(135deg,#ffffff,#cfd6cf);--pend:#f0c869;--pend-bg:#3a2f0c;--ok:#5fd98a;--ok-bg:#0f2c1a;--bad:#f2948a;--bad-bg:#3a1414;--re:#a7a3f5;--re-bg:#1e1c3a;--shadow:0 10px 26px rgba(0,0,0,.35);}}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bg:#12161a;--bg2:#171b1f;--card:#1d2226;--ink:#f2f4f2;--sub:#9aa39d;--line:#2b3630;--accent:#f2f4f2;--accent-ink:#12161a;--accent-grad:linear-gradient(135deg,#ffffff,#cfd6cf);--pend:#f0c869;--pend-bg:#3a2f0c;--ok:#5fd98a;--ok-bg:#0f2c1a;--bad:#f2948a;--bad-bg:#3a1414;--re:#a7a3f5;--re-bg:#1e1c3a;--shadow:0 10px 26px rgba(0,0,0,.35);}
+.logo img{filter:invert(1);}}
+:root[data-theme="light"]{color-scheme:light;}
 *{box-sizing:border-box;}
 body{margin:0;font-family:'Poppins',-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;background:radial-gradient(circle at 10% 0%, var(--bg2), var(--bg) 55%);color:var(--ink);min-height:100vh;}
 .logo{display:inline-block;}
@@ -107,6 +109,19 @@ textarea{resize:vertical;min-height:50px;}
 .chatInputRow{display:flex;gap:8px;}
 .chatInputRow input{flex:1;}
 .chatInputRow button{flex:0 0 auto;padding:0 16px;border-radius:10px;border:none;background:var(--accent-grad);color:var(--accent-ink);font-weight:700;cursor:pointer;}
+.rng-chips{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 2px;}
+.rng-chips button{padding:7px 12px;border-radius:16px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+.rng-dates{display:flex;gap:10px;}
+.rng-dates>div{flex:1;min-width:0;}
+.rng-kpis{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:14px 0 4px;}
+.rng-kpi{background:var(--bg);border:1px solid var(--line);border-radius:14px;padding:11px 12px;}
+.rng-kpi span{display:block;font-size:11px;color:var(--sub);font-weight:600;}
+.rng-kpi b{display:block;font-size:16px;margin-top:2px;}
+.rng-kpi.big{grid-column:1 / -1;border-color:var(--ok);}
+.rng-kpi.big b{font-size:20px;color:var(--ok);}
+.rng-day{display:flex;justify-content:space-between;gap:8px;padding:8px 0;border-bottom:1px solid var(--line);font-size:13px;}
+.rng-day small{color:var(--sub);display:block;font-size:11px;}
+.rng-h{font-size:12px;color:var(--sub);font-weight:700;margin:16px 0 4px;}
 </style>
 </head>
 <body>
@@ -136,6 +151,7 @@ textarea{resize:vertical;min-height:50px;}
     <div style="display:flex;gap:8px;" class="headRight">
       <button class="closebtn" id="installBtnHeader" style="display:none;">📲 Instalar</button>
       <button class="closebtn" id="refreshBtn" title="Actualizar">🔄</button>
+      <button class="closebtn" id="reportBtn" style="display:none;">📊 Cuentas</button>
       <button class="closebtn" id="closeDayBtn" style="display:none;">Cerrar día</button>
       <div class="avatarChip" id="avatarChip">?</div>
     </div>
@@ -291,6 +307,30 @@ textarea{resize:vertical;min-height:50px;}
   <p class="status-line" id="sumStatus"></p>
 </div></div>
 
+<div class="sheet-bg" id="rngBg"><div class="sheet">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+    <h2 style="margin:0;">Cuentas por fechas</h2>
+    <button type="button" id="rngX" style="width:32px;height:32px;border-radius:50%;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;padding:0;">✕</button>
+  </div>
+  <div class="rng-chips">
+    <button type="button" data-rng="hoy">Hoy</button>
+    <button type="button" data-rng="ayer">Ayer</button>
+    <button type="button" data-rng="7">Últimos 7 días</button>
+    <button type="button" data-rng="mes">Este mes</button>
+    <button type="button" data-rng="mesant">Mes pasado</button>
+  </div>
+  <div class="rng-dates">
+    <div><label>Desde</label><input type="date" id="rng_desde"></div>
+    <div><label>Hasta</label><input type="date" id="rng_hasta"></div>
+  </div>
+  <div id="rngBody"></div>
+  <div class="sheet-actions">
+    <button class="btn-cancel" id="rngCopy" type="button">📋 Copiar resumen</button>
+    <button class="btn-save" id="rngClose" type="button">Listo</button>
+  </div>
+  <p class="status-line" id="rngStatus"></p>
+</div></div>
+
 <script>
 /* ======= 1) PEGA AQUÍ TU CONFIGURACIÓN DE FIREBASE ======= */
 const firebaseConfig = {
@@ -422,6 +462,7 @@ auth.onAuthStateChanged(async user=>{
   document.getElementById("list").style.display="block";
   document.getElementById("addBtn").style.display = myRole==="dueno" ? "block" : "none";
   document.getElementById("closeDayBtn").style.display = (myRole==="dueno"||myRole==="supervisor") ? "inline-block" : "none";
+  document.getElementById("reportBtn").style.display = myRole==="dueno" ? "inline-block" : "none";
   const avatarColors={dueno:"#161c18",supervisor:"#ece0fb",motorizado:"#cdeffd"};
   const chip=document.getElementById("avatarChip");
   const nombreYo=(doc.data().nombre||myEmail||"?").trim();
@@ -966,6 +1007,95 @@ document.getElementById("closeDayBtn").addEventListener("click", async ()=>{
   catch(e){ sumStatus.textContent="No se pudo guardar el cierre."; console.error(e); }
 });
 document.getElementById("sumClose").addEventListener("click",()=>document.getElementById("sumBg").classList.remove("open"));
+
+/* ---------- CUENTAS POR RANGO DE FECHAS ---------- */
+// Cuenta solo pedidos ENTREGADOS, por su fecha de entrega (igual que el cierre del día).
+// Ventas = monto cobrado al cliente. Neto = ventas - tarifas de delivery.
+function computeRango(desde, hasta){
+  const items=merged().filter(o=>{
+    if(o.estado!=="entregado") return false;
+    const k=fechaEfectiva(o);
+    return k>=desde && k<=hasta;
+  });
+  const t={count:0,prendas:0,ventas:0,tarifas:0,neto:0};
+  const porMoto={}, porDia={}, zona={lima:{count:0,ventas:0},prov:{count:0,ventas:0}};
+  items.forEach(o=>{
+    const cob=parseFloat(o.montoCobrado)||0, tar=parseFloat(o.tarifaDelivery)||0, pr=parseInt(o.cantidad)||1;
+    t.count++; t.prendas+=pr; t.ventas+=cob; t.tarifas+=tar; t.neto+=cob-tar;
+    const em=o.motorizadoEmail||"sin_asignar";
+    const m=porMoto[em]||(porMoto[em]={count:0,ventas:0,tarifas:0,neto:0});
+    m.count++; m.ventas+=cob; m.tarifas+=tar; m.neto+=cob-tar;
+    const k=fechaEfectiva(o);
+    const d=porDia[k]||(porDia[k]={count:0,prendas:0,ventas:0,neto:0});
+    d.count++; d.prendas+=pr; d.ventas+=cob; d.neto+=cob-tar;
+    const z=o.restringido?zona.prov:zona.lima; z.count++; z.ventas+=cob;
+  });
+  return {t, porMoto, porDia, zona};
+}
+function fmtS(n){ return "S/ "+(Number(n)||0).toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2}); }
+function fmtDiaCorto(k){ const [y,m,d]=k.split("-"); return d+"/"+m+"/"+y; }
+let lastRngText="";
+function renderRango(){
+  let desde=document.getElementById("rng_desde").value, hasta=document.getElementById("rng_hasta").value;
+  const body=document.getElementById("rngBody");
+  if(!desde||!hasta){ body.innerHTML='<div class="empty" style="padding:30px 10px;">Elige las dos fechas.</div>'; lastRngText=""; return; }
+  if(desde>hasta){ const x=desde; desde=hasta; hasta=x; }
+  const r=computeRango(desde,hasta);
+  if(!r.t.count){ body.innerHTML='<div class="empty" style="padding:30px 10px;">No hay entregas entre esas fechas.</div>'; lastRngText=""; return; }
+  const nom=e=>e==="sin_asignar"?"Sin asignar":(usuariosMap[e]?.nombre||e);
+  const motoRows=Object.entries(r.porMoto).sort((a,b)=>b[1].ventas-a[1].ventas).map(([e,m])=>`
+    <div class="moto-block"><b>${esc(nom(e))}</b>
+      <div class="sumrow"><span>Entregados</span><b>${m.count}</b></div>
+      <div class="sumrow"><span>Cobrado</span><b>${fmtS(m.ventas)}</b></div>
+      <div class="sumrow"><span>Tarifas</span><b>${fmtS(m.tarifas)}</b></div>
+      <div class="sumtotal">Deposita: ${fmtS(m.neto)}</div></div>`).join("");
+  const dias=Object.keys(r.porDia).sort();
+  const diaRows=dias.map(k=>{const d=r.porDia[k];return `<div class="rng-day"><div>${fmtDiaCorto(k)}<small>${d.count} entrega(s) · ${d.prendas} prenda(s)</small></div><div style="text-align:right;"><b>${fmtS(d.ventas)}</b><small>neto ${fmtS(d.neto)}</small></div></div>`;}).join("");
+  const hayProv=r.zona.prov.count>0;
+  body.innerHTML=`
+    <div class="rng-kpis">
+      <div class="rng-kpi big"><span>Ventas cobradas</span><b>${fmtS(r.t.ventas)}</b></div>
+      <div class="rng-kpi"><span>Tarifas de delivery</span><b>${fmtS(r.t.tarifas)}</b></div>
+      <div class="rng-kpi"><span>Neto (ventas − tarifas)</span><b>${fmtS(r.t.neto)}</b></div>
+      <div class="rng-kpi"><span>Pedidos entregados</span><b>${r.t.count}</b></div>
+      <div class="rng-kpi"><span>👕 Prendas vendidas</span><b>${r.t.prendas}</b></div>
+      ${hayProv?`<div class="rng-kpi"><span>🏙️ Lima</span><b>${fmtS(r.zona.lima.ventas)}</b></div><div class="rng-kpi"><span>📦 Provincia</span><b>${fmtS(r.zona.prov.ventas)}</b></div>`:""}
+    </div>
+    <div class="rng-h">POR MOTORIZADO</div>${motoRows}
+    <div class="rng-h">POR DÍA</div>${diaRows}`;
+  let txt=`📊 *VICEWRLD · Cuentas*\n${fmtDiaCorto(desde)} al ${fmtDiaCorto(hasta)}\n\n`;
+  txt+=`Ventas cobradas: ${fmtS(r.t.ventas)}\nTarifas delivery: ${fmtS(r.t.tarifas)}\nNeto: ${fmtS(r.t.neto)}\nPedidos entregados: ${r.t.count}\nPrendas vendidas: ${r.t.prendas}\n`;
+  if(hayProv) txt+=`Lima: ${fmtS(r.zona.lima.ventas)} · Provincia: ${fmtS(r.zona.prov.ventas)}\n`;
+  txt+=`\n*Por motorizado*\n`+Object.entries(r.porMoto).map(([e,m])=>`${nom(e)}: ${m.count} entregas · cobró ${fmtS(m.ventas)} · deposita ${fmtS(m.neto)}`).join("\n");
+  lastRngText=txt;
+}
+function setRango(kind){
+  const now=new Date(); let a=new Date(now), b=new Date(now);
+  if(kind==="ayer"){ a.setDate(a.getDate()-1); b=new Date(a); }
+  else if(kind==="7"){ a.setDate(a.getDate()-6); }
+  else if(kind==="mes"){ a=new Date(now.getFullYear(),now.getMonth(),1); }
+  else if(kind==="mesant"){ a=new Date(now.getFullYear(),now.getMonth()-1,1); b=new Date(now.getFullYear(),now.getMonth(),0); }
+  document.getElementById("rng_desde").value=localDateKey(a);
+  document.getElementById("rng_hasta").value=localDateKey(b);
+  renderRango();
+}
+document.getElementById("reportBtn").addEventListener("click",()=>{
+  if(!document.getElementById("rng_desde").value) setRango("mes"); else renderRango();
+  document.getElementById("rngStatus").textContent="";
+  document.getElementById("rngBg").classList.add("open");
+});
+document.querySelectorAll("[data-rng]").forEach(b=>b.addEventListener("click",()=>setRango(b.dataset.rng)));
+["rng_desde","rng_hasta"].forEach(id=>document.getElementById(id).addEventListener("change",renderRango));
+["rngX","rngClose"].forEach(id=>document.getElementById(id).addEventListener("click",()=>document.getElementById("rngBg").classList.remove("open")));
+document.getElementById("rngCopy").addEventListener("click", async ()=>{
+  const st=document.getElementById("rngStatus");
+  if(!lastRngText){ st.textContent="No hay nada que copiar."; return; }
+  try{ await navigator.clipboard.writeText(lastRngText); st.textContent="Resumen copiado ✅"; }
+  catch(e){ st.textContent="No se pudo copiar."; }
+});
+// Si cambian los datos con el reporte abierto, se recalcula solo.
+const _renderOrig=render;
+render=function(){ _renderOrig(); if(document.getElementById("rngBg").classList.contains("open")) renderRango(); };
 
 document.querySelectorAll(".tab").forEach(t=>t.addEventListener("click",()=>{
   document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active")); t.classList.add("active"); filter=t.dataset.f; render();
