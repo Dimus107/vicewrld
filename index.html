@@ -177,6 +177,7 @@ textarea{resize:vertical;min-height:50px;}
     <textarea id="f_quick" rows="5" placeholder="ATE - MAX ARROYO&#10;&#10;DIRECCIÓN: ...&#10;DNI: ...&#10;CEL: ...&#10;TALLA: ...&#10;SALDO: S/..."></textarea>
     <label>Distrito / Provincia</label><input id="f_distrito">
     <label>Dirección exacta</label><input id="f_direccion">
+    <div id="agenciaWrap" style="display:none;"><label>Agencia (envío a provincia)</label><input id="f_agencia"></div>
     <label>Nombre</label><input id="f_nombre">
     <label>DNI</label><input id="f_dni" inputmode="numeric">
     <label>Celular</label><input id="f_cel" inputmode="tel">
@@ -524,7 +525,8 @@ function cardHtml(o, readOnly){
       <span class="badge ${st.cls}">${st.label}</span>
     </div>
     <div class="info">
-      <div><b>Dirección:</b> ${esc(o.direccion)||"-"}</div>
+      ${o.agencia?`<div><b>Agencia:</b> ${esc(o.agencia)}</div>`:""}
+      ${(o.direccion||!o.agencia)?`<div><b>Dirección:</b> ${esc(o.direccion)||"-"}</div>`:""}
       ${o.dni?`<div><b>DNI:</b> ${esc(o.dni)}</div>`:""}
       <div><b>Celular:</b> ${waNum?`<a class="tel" href="https://wa.me/${waNum}?text=${waMsg}" target="_blank" rel="noopener">${esc(o.cel)} (WhatsApp)</a>`:"-"}</div>
       ${o.notas?`<div><b>Notas:</b> ${esc(o.notas)}</div>`:""}
@@ -736,12 +738,13 @@ document.getElementById("estSave").addEventListener("click", ()=>{
 
 /* ---------- NUEVO PEDIDO / EDITAR PEDIDO ---------- */
 const sheetBg=document.getElementById("sheetBg");
-const FIELD_IDS=["f_distrito","f_direccion","f_nombre","f_dni","f_cel","f_talla","f_cantidad","f_monto","f_notas"];
+const FIELD_IDS=["f_distrito","f_direccion","f_agencia","f_nombre","f_dni","f_cel","f_talla","f_cantidad","f_monto","f_notas"];
 function resetSheetFields(){
   document.getElementById("f_quick").value="";
   FIELD_IDS.forEach(id=>document.getElementById(id).value="");
   manualEsProvincia=false;
   setZonaBtns(zonaLimaBtn,zonaProvinciaBtn,false);
+  document.getElementById("agenciaWrap").style.display="none";
   linkEsProvincia=false;
   setZonaBtns(linkZonaLimaBtn,linkZonaProvinciaBtn,false);
 }
@@ -764,8 +767,9 @@ function setZonaBtns(limaBtn, provBtn, esProvincia){
   provBtn.style.color = esProvincia ? "var(--accent-ink)" : "var(--ink)";
 }
 const zonaLimaBtn=document.getElementById("zonaLimaBtn"), zonaProvinciaBtn=document.getElementById("zonaProvinciaBtn");
-zonaLimaBtn.addEventListener("click",()=>{ manualEsProvincia=false; setZonaBtns(zonaLimaBtn,zonaProvinciaBtn,false); });
-zonaProvinciaBtn.addEventListener("click",()=>{ manualEsProvincia=true; setZonaBtns(zonaLimaBtn,zonaProvinciaBtn,true); });
+function refreshAgenciaVisible(){ document.getElementById("agenciaWrap").style.display = manualEsProvincia ? "block" : "none"; }
+zonaLimaBtn.addEventListener("click",()=>{ manualEsProvincia=false; setZonaBtns(zonaLimaBtn,zonaProvinciaBtn,false); refreshAgenciaVisible(); });
+zonaProvinciaBtn.addEventListener("click",()=>{ manualEsProvincia=true; setZonaBtns(zonaLimaBtn,zonaProvinciaBtn,true); refreshAgenciaVisible(); });
 const linkZonaLimaBtn=document.getElementById("linkZonaLimaBtn"), linkZonaProvinciaBtn=document.getElementById("linkZonaProvinciaBtn");
 linkZonaLimaBtn.addEventListener("click",()=>{ linkEsProvincia=false; setZonaBtns(linkZonaLimaBtn,linkZonaProvinciaBtn,false); });
 linkZonaProvinciaBtn.addEventListener("click",()=>{ linkEsProvincia=true; setZonaBtns(linkZonaLimaBtn,linkZonaProvinciaBtn,true); });
@@ -832,6 +836,8 @@ function openEditSheet(id){
   document.getElementById("f_notas").value=o.notas||"";
   manualEsProvincia = !!o.restringido;
   setZonaBtns(zonaLimaBtn,zonaProvinciaBtn,manualEsProvincia);
+  document.getElementById("f_agencia").value=o.agencia||"";
+  document.getElementById("agenciaWrap").style.display = manualEsProvincia ? "block" : "none";
   document.getElementById("saveStatus").textContent="";
   sheetBg.classList.add("open");
 }
@@ -873,6 +879,7 @@ function autofillFromQuickText(text){
     else if(label.includes("CEL")||label.includes("TELEFONO")||label.includes("WHATSAPP")) data.cel=value;
     else if(label.includes("TALLA")) data.talla=value;
     else if(label.includes("CANTIDAD")) data.cantidad=value;
+    else if(label.includes("AGENCIA")) data.agencia=value;
     else if(label.includes("SALDO")||label.includes("MONTO")||label.includes("COBRAR")) data.monto=value;
   });
   if(data.distrito) document.getElementById("f_distrito").value=data.distrito;
@@ -882,6 +889,10 @@ function autofillFromQuickText(text){
   if(data.cel) document.getElementById("f_cel").value=data.cel.replace(/\D/g,"");
   if(data.talla) document.getElementById("f_talla").value=data.talla;
   if(data.cantidad) document.getElementById("f_cantidad").value=data.cantidad.replace(/\D/g,"");
+  if(data.agencia){
+    document.getElementById("f_agencia").value=data.agencia;
+    manualEsProvincia=true; setZonaBtns(zonaLimaBtn,zonaProvinciaBtn,true); refreshAgenciaVisible();
+  }
   if(data.monto){
     const num=data.monto.replace(/[^\d.,]/g,"").replace(",",".");
     if(num) document.getElementById("f_monto").value=num;
@@ -893,9 +904,9 @@ document.getElementById("saveBtn").addEventListener("click", async ()=>{
   const campos={distrito:document.getElementById("f_distrito").value.trim(),direccion:document.getElementById("f_direccion").value.trim(),
     nombre:document.getElementById("f_nombre").value.trim(),dni:document.getElementById("f_dni").value.trim(),cel:document.getElementById("f_cel").value.trim(),
     talla:document.getElementById("f_talla").value.trim(),cantidad:document.getElementById("f_cantidad").value.trim(),monto:document.getElementById("f_monto").value.trim(),
-    notas:document.getElementById("f_notas").value.trim(), restringido:manualEsProvincia};
+    notas:document.getElementById("f_notas").value.trim(), agencia:document.getElementById("f_agencia").value.trim(), restringido:manualEsProvincia};
   const statusEl=document.getElementById("saveStatus");
-  if(!campos.nombre||!campos.direccion){ statusEl.textContent="Falta nombre o dirección."; return; }
+  if(!campos.nombre||(!campos.direccion&&!campos.agencia)){ statusEl.textContent="Falta nombre y dirección (o agencia si es provincia)."; return; }
   statusEl.textContent="Guardando...";
   try{
     if(pendingEditId){

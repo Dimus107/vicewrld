@@ -61,13 +61,28 @@ button:disabled{opacity:.6;cursor:default;}
   <div class="box hidden" id="stateForm">
     <h1>Completa tus datos</h1>
     <p class="sub">Estos datos se envían directo a VICEWRLD para tu pedido.</p>
-    <label>Distrito / Provincia</label><input id="f_distrito">
-    <label>Dirección exacta</label><input id="f_direccion">
-    <label>Nombre completo</label><input id="f_nombre">
-    <label>Celular (WhatsApp)</label><input id="f_cel" inputmode="tel">
-    <label>Talla</label><input id="f_talla">
-    <label>Cantidad de prendas</label><input id="f_cantidad" inputmode="numeric" placeholder="Ej: 1">
-    <label>Notas (opcional)</label><textarea id="f_notas"></textarea>
+
+    <div id="fieldsLima">
+      <label>DISTRITO:</label><input id="f_distrito">
+      <label>DIRECCIÓN:</label><input id="f_direccion">
+      <label>NOMBRE:</label><input id="f_nombre">
+      <label>CEL:</label><input id="f_cel" inputmode="tel">
+      <label>TALLA:</label><input id="f_talla">
+      <label>CANTIDAD DE PRENDAS:</label><input id="f_cantidad" inputmode="numeric">
+      <label>NOTAS:</label><textarea id="f_notas"></textarea>
+    </div>
+
+    <div id="fieldsProvincia" class="hidden">
+      <label>PROVINCIA:</label><input id="p_provincia">
+      <label>AGENCIA :</label><input id="p_agencia">
+      <label>NOMBRE:</label><input id="p_nombre">
+      <label>DNI O CE:</label><input id="p_dni">
+      <label>CEL:</label><input id="p_cel" inputmode="tel">
+      <label>TALLA:</label><input id="p_talla">
+      <label>CANTIDAD DE PRENDAS:</label><input id="p_cantidad" inputmode="numeric">
+      <label>NOTAS:</label><textarea id="p_notas"></textarea>
+    </div>
+
     <button id="sendBtn">Enviar mis datos</button>
     <p class="status" id="formStatus"></p>
   </div>
@@ -120,34 +135,64 @@ async function init(){
   if(!doc.exists){ showState("stateInvalid"); return; }
   if(doc.data().usado){ showState("stateUsed"); return; }
   enlaceRestringido = doc.data().restringido === true;
+  document.getElementById("fieldsLima").classList.toggle("hidden", enlaceRestringido);
+  document.getElementById("fieldsProvincia").classList.toggle("hidden", !enlaceRestringido);
   showState("stateForm");
 }
 init();
 
 function mensajeWhatsapp(c){
+  if(enlaceRestringido){
+    let t = `🆕 *Nuevo pedido PROVINCIA desde el formulario*\n\n`;
+    t += `Provincia: ${c.distrito||"-"}\n`;
+    t += `Agencia: ${c.agencia||"-"}\n`;
+    t += `Nombre: ${c.nombre||"-"}\n`;
+    t += `DNI o CE: ${c.dni||"-"}\n`;
+    t += `Celular: ${c.cel||"-"}\n`;
+    t += `Talla: ${c.talla||"-"}\n`;
+    t += `Cantidad de prendas: ${c.cantidad||"1"}\n`;
+    if(c.notas) t += `Notas: ${c.notas}\n`;
+    return t;
+  }
   let t = `🆕 *Nuevo pedido desde el formulario*\n\n`;
   t += `Distrito: ${c.distrito||"-"}\n`;
   t += `Dirección: ${c.direccion||"-"}\n`;
   t += `Nombre: ${c.nombre||"-"}\n`;
   t += `Celular: ${c.cel||"-"}\n`;
   t += `Talla: ${c.talla||"-"}\n`;
-  t += `Cantidad: ${c.cantidad||"1"}\n`;
+  t += `Cantidad de prendas: ${c.cantidad||"1"}\n`;
   if(c.notas) t += `Notas: ${c.notas}\n`;
   return t;
 }
 
 document.getElementById("sendBtn").addEventListener("click", async ()=>{
   const statusEl=document.getElementById("formStatus");
-  const campos={
-    distrito: document.getElementById("f_distrito").value.trim(),
-    direccion: document.getElementById("f_direccion").value.trim(),
-    nombre: document.getElementById("f_nombre").value.trim(),
-    cel: document.getElementById("f_cel").value.trim(),
-    talla: document.getElementById("f_talla").value.trim(),
-    cantidad: document.getElementById("f_cantidad").value.trim(),
-    notas: document.getElementById("f_notas").value.trim()
+  const v = id => document.getElementById(id).value.trim();
+  const campos = enlaceRestringido ? {
+    distrito: v("p_provincia"),
+    agencia: v("p_agencia"),
+    direccion: "",
+    nombre: v("p_nombre"),
+    dni: v("p_dni"),
+    cel: v("p_cel"),
+    talla: v("p_talla"),
+    cantidad: v("p_cantidad"),
+    notas: v("p_notas")
+  } : {
+    distrito: v("f_distrito"),
+    direccion: v("f_direccion"),
+    nombre: v("f_nombre"),
+    cel: v("f_cel"),
+    talla: v("f_talla"),
+    cantidad: v("f_cantidad"),
+    notas: v("f_notas")
   };
-  if(!campos.nombre || !campos.direccion || !campos.cel){
+  if(enlaceRestringido){
+    if(!campos.nombre || !campos.agencia || !campos.cel){
+      statusEl.textContent="Falta nombre, agencia o celular.";
+      return;
+    }
+  } else if(!campos.nombre || !campos.direccion || !campos.cel){
     statusEl.textContent="Falta nombre, dirección o celular.";
     return;
   }
