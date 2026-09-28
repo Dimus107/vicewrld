@@ -44,7 +44,7 @@ header{position:sticky;top:0;padding:calc(env(safe-area-inset-top,0px) + 16px) 1
 .htop{display:flex;justify-content:space-between;align-items:center;gap:10px;}
 .headRight{display:flex;align-items:center;gap:8px;}
 .avatarChip{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px;color:#1a1a1a;background:#cdeffd;flex:0 0 auto;overflow:hidden;cursor:pointer;}
-.avatarChip img{width:100%;height:100%;object-fit:cover;display:block;}
+.avatarChip img,#p_avatarPreview img{width:100%;height:100%;object-fit:cover;display:block;}
 .sub{color:var(--sub);font-size:12.5px;margin:4px 0 0;font-weight:500;}
 .closebtn{flex:0 0 auto;padding:9px 14px;border-radius:20px;font-size:12.5px;font-weight:600;border:1px solid var(--line);background:var(--card);color:var(--ink);cursor:pointer;font-family:inherit;}
 .tabs{display:flex;gap:8px;margin-top:14px;overflow-x:auto;padding-bottom:2px;}
@@ -248,8 +248,13 @@ textarea{resize:vertical;min-height:50px;}
 
 <div class="sheet-bg" id="profileBg"><div class="sheet">
   <h2>Mi perfil</h2>
-  <div style="display:flex;justify-content:center;margin:4px 0 10px;">
+  <div id="p_avatarWrap" style="display:flex;justify-content:center;margin:4px 0 10px;">
     <div id="p_avatarPreview" style="width:84px;height:84px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:30px;background:#cdeffd;color:#1a1a1a;"></div>
+  </div>
+  <div id="cropBox" style="display:none;margin:4px 0 6px;text-align:center;">
+    <canvas id="cropCanvas" width="240" height="240" style="width:240px;height:240px;max-width:100%;border-radius:50%;touch-action:none;cursor:grab;background:#000;"></canvas>
+    <div style="font-size:12px;color:var(--sub);margin:8px 0 4px;">Arrastra la foto para moverla · usa el control para acercar</div>
+    <input type="range" id="cropZoom" min="1" max="3" step="0.01" value="1" style="width:80%;padding:0;border:none;background:transparent;">
   </div>
   <label>Foto de perfil</label><input type="file" id="p_foto" accept="image/*">
   <label>Nombre a mostrar</label><input id="p_nombre" placeholder="Tu nombre">
@@ -682,26 +687,83 @@ function openProfileSheet(){
   const u=usuariosMap[myEmail]||{};
   document.getElementById("p_nombre").value=u.nombre||"";
   document.getElementById("p_foto").value="";
-  pendingAvatarPhoto=null;
+  pendingAvatarPhoto=null; crop=null;
+  document.getElementById("cropBox").style.display="none";
+  document.getElementById("p_avatarWrap").style.display="flex";
   setAvatarChip(document.getElementById("p_avatarPreview"), u.fotoData||null, (u.nombre||myEmail||"?").trim().charAt(0).toUpperCase());
   document.getElementById("profileStatus").textContent="";
   document.getElementById("profileBg").classList.add("open");
 }
 document.getElementById("avatarChip").addEventListener("click", openProfileSheet);
 document.getElementById("profileCancel").addEventListener("click",()=>document.getElementById("profileBg").classList.remove("open"));
+/* ---------- REENCUADRAR FOTO DE PERFIL ---------- */
+const CROP_VIEW=240, CROP_OUT=320;
+let crop=null; // {img, min, zoom, ox, oy}
+function cropDraw(){
+  const ctx=document.getElementById("cropCanvas").getContext("2d");
+  const sc=crop.min*crop.zoom;
+  ctx.fillStyle="#000"; ctx.fillRect(0,0,CROP_VIEW,CROP_VIEW);
+  ctx.drawImage(crop.img, crop.ox, crop.oy, crop.img.width*sc, crop.img.height*sc);
+}
+function cropClamp(){
+  const sc=crop.min*crop.zoom;
+  crop.ox=Math.min(0,Math.max(CROP_VIEW-crop.img.width*sc,crop.ox));
+  crop.oy=Math.min(0,Math.max(CROP_VIEW-crop.img.height*sc,crop.oy));
+}
+function cropSetZoom(z){
+  const c=CROP_VIEW/2, old=crop.min*crop.zoom;
+  const px=(c-crop.ox)/old, py=(c-crop.oy)/old; // punto de la foto bajo el centro
+  crop.zoom=z; const sc=crop.min*z;
+  crop.ox=c-px*sc; crop.oy=c-py*sc;
+  cropClamp(); cropDraw();
+}
+function cropExport(){
+  const out=document.createElement("canvas"); out.width=out.height=CROP_OUT;
+  const k=CROP_OUT/CROP_VIEW, sc=crop.min*crop.zoom*k;
+  out.getContext("2d").drawImage(crop.img, crop.ox*k, crop.oy*k, crop.img.width*sc, crop.img.height*sc);
+  return out.toDataURL("image/jpeg", 0.85);
+}
+(function(){
+  const c=document.getElementById("cropCanvas"); let last=null;
+  c.addEventListener("pointerdown",e=>{ if(!crop) return; last={x:e.clientX,y:e.clientY}; c.setPointerCapture(e.pointerId); c.style.cursor="grabbing"; });
+  c.addEventListener("pointermove",e=>{
+    if(!crop||!last) return;
+    const k=CROP_VIEW/c.getBoundingClientRect().width;
+    crop.ox+=(e.clientX-last.x)*k; crop.oy+=(e.clientY-last.y)*k;
+    last={x:e.clientX,y:e.clientY}; cropClamp(); cropDraw();
+  });
+  const fin=()=>{ last=null; c.style.cursor="grab"; };
+  c.addEventListener("pointerup",fin); c.addEventListener("pointercancel",fin);
+  c.addEventListener("wheel",e=>{
+    if(!crop) return; e.preventDefault();
+    const z=Math.min(3,Math.max(1,crop.zoom+(e.deltaY<0?0.1:-0.1)));
+    document.getElementById("cropZoom").value=z; cropSetZoom(z);
+  },{passive:false});
+  document.getElementById("cropZoom").addEventListener("input",e=>{ if(crop) cropSetZoom(parseFloat(e.target.value)); });
+})();
 document.getElementById("p_foto").addEventListener("change",()=>{
   const file=document.getElementById("p_foto").files[0];
   if(!file) return;
-  compressImage(file, dataUrl=>{
-    pendingAvatarPhoto=dataUrl;
-    setAvatarChip(document.getElementById("p_avatarPreview"), dataUrl, "");
-  }, 320);
+  const url=URL.createObjectURL(file), img=new Image();
+  img.onload=()=>{
+    URL.revokeObjectURL(url);
+    const min=Math.max(CROP_VIEW/img.width, CROP_VIEW/img.height);
+    crop={img, min, zoom:1, ox:(CROP_VIEW-img.width*min)/2, oy:(CROP_VIEW-img.height*min)/2};
+    document.getElementById("cropZoom").value=1;
+    document.getElementById("p_avatarWrap").style.display="none";
+    document.getElementById("cropBox").style.display="block";
+    document.getElementById("profileStatus").textContent="";
+    cropDraw();
+  };
+  img.onerror=()=>{ document.getElementById("profileStatus").textContent="No se pudo leer esa foto."; };
+  img.src=url;
 });
 document.getElementById("profileSave").addEventListener("click", async ()=>{
   const statusEl=document.getElementById("profileStatus");
   const nombre=document.getElementById("p_nombre").value.trim();
   if(!nombre){ statusEl.textContent="Poné un nombre."; return; }
   const payload={nombre};
+  if(crop) pendingAvatarPhoto=cropExport();
   if(pendingAvatarPhoto) payload.fotoData=pendingAvatarPhoto;
   statusEl.textContent="Guardando...";
   try{
