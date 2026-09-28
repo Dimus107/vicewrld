@@ -38,6 +38,14 @@ button:disabled{opacity:.6;cursor:default;}
 .center .big{font-size:34px;margin-bottom:6px;}
 .center h1{margin-bottom:8px;}
 .hidden{display:none;}
+.hint{font-size:11.5px;color:var(--sub);margin-top:6px;}
+.chips{display:flex;flex-wrap:wrap;gap:8px;}
+button.chip{width:auto;margin:0;padding:10px 16px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-size:14px;font-weight:600;box-shadow:none;min-width:52px;}
+button.chip.on{background:var(--accent-grad);color:var(--btn-ink);border-color:transparent;}
+.stepper{display:flex;align-items:center;justify-content:center;gap:18px;}
+button.stp{width:44px;height:44px;margin:0;padding:0;border-radius:50%;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-size:22px;font-weight:600;box-shadow:none;line-height:1;}
+.stpv{min-width:36px;text-align:center;font-size:20px;font-weight:700;}
+input.err,.chips.err{border-color:var(--bad);}
 .ac{position:relative;}
 .ac-list{list-style:none;margin:4px 0 0;padding:4px;position:absolute;left:0;right:0;top:100%;z-index:20;max-height:220px;overflow-y:auto;background:var(--card);border:1.5px solid var(--line);border-radius:14px;box-shadow:var(--shadow);}
 .ac-list li{padding:10px 12px;border-radius:10px;font-size:14px;cursor:pointer;}
@@ -78,9 +86,17 @@ button:disabled{opacity:.6;cursor:default;}
       <label>DISTRITO:</label><div class="ac"><input id="f_distrito" autocomplete="off" autocapitalize="words" placeholder="Escribe y elige tu distrito"><ul class="ac-list hidden" id="ac_f_distrito"></ul></div>
       <label>DIRECCIÓN:</label><input id="f_direccion">
       <label>NOMBRE:</label><input id="f_nombre">
-      <label>CEL:</label><input id="f_cel" inputmode="tel">
-      <label>TALLA:</label><input id="f_talla">
-      <label>CANTIDAD DE PRENDAS:</label><input id="f_cantidad" inputmode="numeric">
+      <label>CEL:</label><input id="f_cel" inputmode="tel" maxlength="16" placeholder="9 dígitos, ej. 987654321" autocomplete="tel">
+      <label>TALLA:</label>
+      <input type="hidden" id="f_talla">
+      <div class="chips" data-talla="f">
+        <button type="button" class="chip" data-t="S">S</button><button type="button" class="chip" data-t="M">M</button><button type="button" class="chip" data-t="L">L</button><button type="button" class="chip" data-t="XL">XL</button><button type="button" class="chip" data-t="XXL">XXL</button><button type="button" class="chip" data-t="otra">Otra</button>
+      </div>
+      <input id="f_talla_otra" class="hidden" placeholder="Escribe tu talla" style="margin-top:8px;">
+      <div class="hint">Puedes elegir más de una si llevas prendas de distintas tallas.</div>
+      <label>CANTIDAD DE PRENDAS:</label>
+      <input type="hidden" id="f_cantidad" value="1">
+      <div class="stepper" data-cant="f"><button type="button" class="stp" data-d="-1" aria-label="Menos">−</button><span class="stpv" id="f_cantv">1</span><button type="button" class="stp" data-d="1" aria-label="Más">+</button></div>
       <label>NOTAS:</label><textarea id="f_notas"></textarea>
     </div>
 
@@ -88,10 +104,18 @@ button:disabled{opacity:.6;cursor:default;}
       <label>PROVINCIA:</label><div class="ac"><input id="p_provincia" autocomplete="off" autocapitalize="words" placeholder="Escribe tu provincia"><ul class="ac-list hidden" id="ac_p_provincia"></ul></div>
       <label>AGENCIA :</label><input id="p_agencia">
       <label>NOMBRE:</label><input id="p_nombre">
-      <label>DNI O CE:</label><input id="p_dni">
-      <label>CEL:</label><input id="p_cel" inputmode="tel">
-      <label>TALLA:</label><input id="p_talla">
-      <label>CANTIDAD DE PRENDAS:</label><input id="p_cantidad" inputmode="numeric">
+      <label>DNI O CE:</label><input id="p_dni" maxlength="12" autocomplete="off" placeholder="DNI de 8 dígitos o carné de extranjería">
+      <label>CEL:</label><input id="p_cel" inputmode="tel" maxlength="16" placeholder="9 dígitos, ej. 987654321" autocomplete="tel">
+      <label>TALLA:</label>
+      <input type="hidden" id="p_talla">
+      <div class="chips" data-talla="p">
+        <button type="button" class="chip" data-t="S">S</button><button type="button" class="chip" data-t="M">M</button><button type="button" class="chip" data-t="L">L</button><button type="button" class="chip" data-t="XL">XL</button><button type="button" class="chip" data-t="XXL">XXL</button><button type="button" class="chip" data-t="otra">Otra</button>
+      </div>
+      <input id="p_talla_otra" class="hidden" placeholder="Escribe tu talla" style="margin-top:8px;">
+      <div class="hint">Puedes elegir más de una si llevas prendas de distintas tallas.</div>
+      <label>CANTIDAD DE PRENDAS:</label>
+      <input type="hidden" id="p_cantidad" value="1">
+      <div class="stepper" data-cant="p"><button type="button" class="stp" data-d="-1" aria-label="Menos">−</button><span class="stpv" id="p_cantv">1</span><button type="button" class="stp" data-d="1" aria-label="Más">+</button></div>
       <label>NOTAS:</label><textarea id="p_notas"></textarea>
     </div>
 
@@ -182,6 +206,45 @@ function activarBuscador(inputId, lista, soloLista){
 activarBuscador("f_distrito", DISTRITOS, true);
 activarBuscador("p_provincia", PROVINCIAS, false);
 
+/* ---------- TALLAS (botones) Y CANTIDAD (+ / −) ---------- */
+function montarTallas(p){
+  const wrap=document.querySelector('.chips[data-talla="'+p+'"]'), hid=document.getElementById(p+"_talla"), otra=document.getElementById(p+"_talla_otra");
+  const sync=()=>{
+    const sel=[...wrap.querySelectorAll(".chip.on")].map(c=>c.dataset.t).filter(t=>t!=="otra");
+    const extra=wrap.querySelector('.chip[data-t="otra"]').classList.contains("on") ? otra.value.trim().toUpperCase() : "";
+    hid.value=sel.concat(extra?[extra]:[]).join(", ");
+    wrap.classList.remove("err");
+  };
+  wrap.addEventListener("click",e=>{
+    const b=e.target.closest(".chip"); if(!b) return;
+    b.classList.toggle("on");
+    if(b.dataset.t==="otra"){ otra.classList.toggle("hidden",!b.classList.contains("on")); if(b.classList.contains("on")) otra.focus(); }
+    sync();
+  });
+  otra.addEventListener("input",sync);
+}
+function montarCantidad(p){
+  const box=document.querySelector('.stepper[data-cant="'+p+'"]'), hid=document.getElementById(p+"_cantidad"), out=document.getElementById(p+"_cantv");
+  box.addEventListener("click",e=>{
+    const b=e.target.closest(".stp"); if(!b) return;
+    const n=Math.min(20,Math.max(1,(parseInt(hid.value)||1)+parseInt(b.dataset.d)));
+    hid.value=n; out.textContent=n;
+  });
+}
+["f","p"].forEach(p=>{ montarTallas(p); montarCantidad(p); });
+
+/* ---------- VALIDACIONES ---------- */
+function celValido(txt){
+  let d=(txt||"").replace(/\D/g,"");
+  if(d.length===11 && d.startsWith("51")) d=d.slice(2);
+  return /^9\d{8}$/.test(d) ? d : null;
+}
+function dniValido(txt){
+  const t=(txt||"").replace(/[\s.-]/g,"").toUpperCase();
+  return (/^\d{8}$/.test(t) || /^[A-Z0-9]{9,12}$/.test(t)) ? t : null;
+}
+function marcarError(id){ const el=document.getElementById(id); if(!el) return; el.classList.add("err"); el.scrollIntoView({behavior:"smooth",block:"center"}); if(el.focus && el.tagName==="INPUT") el.focus({preventScroll:true}); el.addEventListener("input",()=>el.classList.remove("err"),{once:true}); }
+
 function showState(id){
   ["stateLoading","stateInvalid","stateUsed","stateForm","stateDone"].forEach(s=>{
     document.getElementById(s).classList.toggle("hidden", s!==id);
@@ -257,19 +320,30 @@ document.getElementById("sendBtn").addEventListener("click", async ()=>{
     cantidad: v("f_cantidad"),
     notas: v("f_notas")
   };
+  const P = enlaceRestringido ? "p" : "f";
+  const falla=(msg,id)=>{ statusEl.textContent=msg; marcarError(id); };
+  if(!navigator.onLine){ statusEl.textContent="Parece que no tienes internet. Conéctate e inténtalo de nuevo."; return; }
   if(enlaceRestringido){
-    if(!campos.nombre || !campos.agencia || !campos.cel){
-      statusEl.textContent="Falta nombre, agencia o celular.";
-      return;
-    }
-  } else if(!exacto(DISTRITOS, campos.distrito)){
-    statusEl.textContent="Elige tu distrito de las opciones que aparecen al escribir.";
-    return;
-  } else if(!campos.nombre || !campos.direccion || !campos.cel){
-    statusEl.textContent="Falta nombre, dirección o celular.";
+    if(!campos.distrito) return falla("Escribe tu provincia.","p_provincia");
+    if(!campos.agencia) return falla("Falta la agencia.","p_agencia");
+    if(!campos.nombre) return falla("Falta tu nombre.","p_nombre");
+    const dni=dniValido(campos.dni);
+    if(!dni) return falla("Revisa tu DNI (8 dígitos) o carné de extranjería (9 a 12 caracteres).","p_dni");
+    campos.dni=dni;
+  } else {
+    if(!exacto(DISTRITOS, campos.distrito)) return falla("Elige tu distrito de las opciones que aparecen al escribir.","f_distrito");
+    if(!campos.direccion) return falla("Falta tu dirección.","f_direccion");
+    if(!campos.nombre) return falla("Falta tu nombre.","f_nombre");
+    campos.distrito=exacto(DISTRITOS, campos.distrito);
+  }
+  const cel=celValido(campos.cel);
+  if(!cel) return falla("Revisa tu celular: deben ser 9 dígitos y empezar con 9.",P+"_cel");
+  campos.cel=cel;
+  if(!campos.talla){
+    statusEl.textContent="Elige tu talla.";
+    const ch=document.querySelector('.chips[data-talla="'+P+'"]'); ch.classList.add("err"); ch.scrollIntoView({behavior:"smooth",block:"center"});
     return;
   }
-  if(!enlaceRestringido) campos.distrito=exacto(DISTRITOS, campos.distrito);
   const btn=document.getElementById("sendBtn");
   btn.disabled=true;
   statusEl.textContent="Enviando...";
