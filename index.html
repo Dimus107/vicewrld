@@ -195,6 +195,17 @@ textarea{resize:vertical;min-height:50px;}
   <div class="sheet-actions"><button class="btn-save" id="iosClose" style="flex:1;">Entendido</button></div>
 </div></div>
 
+<div class="sheet-bg" id="androidBg"><div class="sheet">
+  <h2>Instalar la app</h2>
+  <p style="font-size:14px;line-height:1.6;">
+    Tu navegador no mostró el aviso automático, pero igual puedes instalarla:<br><br>
+    1️⃣ Toca el botón de <b>⋮ menú</b> (los tres puntos, arriba a la derecha de Chrome).<br><br>
+    2️⃣ Busca la opción <b>"Instalar app"</b> o <b>"Agregar a pantalla de inicio"</b>.<br><br>
+    3️⃣ Confirma. El ícono de VICEWRLD quedará en tu pantalla como cualquier app.
+  </p>
+  <div class="sheet-actions"><button class="btn-save" id="androidClose" style="flex:1;">Entendido</button></div>
+</div></div>
+
 <div class="sheet-bg" id="sheetBg"><div class="sheet">
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;">
     <h2 id="sheetTitle" style="margin:0;">Nuevo pedido</h2>
@@ -414,13 +425,10 @@ function showInstallButtons(show){
   document.getElementById("installBtnHeader").style.display = show ? "inline-block" : "none";
 }
 
-if(!isStandalone()){
-  if(isIOS()) showInstallButtons(true); // en iPhone siempre mostramos el botón (con instrucciones)
-}
+if(!isStandalone()) showInstallButtons(true); // el botón siempre se ve, salvo que ya esté instalada
 window.addEventListener("beforeinstallprompt", (e)=>{
   e.preventDefault();
-  deferredPrompt = e;
-  if(!isStandalone()) showInstallButtons(true); // Android/Chrome: botón real
+  deferredPrompt = e; // guardamos el aviso real de Chrome para cuando toquen el botón
 });
 window.addEventListener("appinstalled", ()=>{ showInstallButtons(false); deferredPrompt=null; });
 
@@ -432,11 +440,14 @@ async function handleInstallClick(){
     if(choice.outcome === "accepted") showInstallButtons(false);
   } else if(isIOS()){
     document.getElementById("iosBg").classList.add("open");
+  } else {
+    document.getElementById("androidBg").classList.add("open");
   }
 }
 document.getElementById("installBtnLogin").addEventListener("click", handleInstallClick);
 document.getElementById("installBtnHeader").addEventListener("click", handleInstallClick);
 document.getElementById("iosClose").addEventListener("click", ()=>document.getElementById("iosBg").classList.remove("open"));
+document.getElementById("androidClose").addEventListener("click", ()=>document.getElementById("androidBg").classList.remove("open"));
 
 if("serviceWorker" in navigator){
   window.addEventListener("load", ()=>{ navigator.serviceWorker.register("sw.js").catch(()=>{}); });
