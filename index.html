@@ -597,8 +597,12 @@ function cardHtml(o, readOnly){
   const iconLetra = (o.distrito||"?").trim().charAt(0).toUpperCase()||"?";
   const telNum = waNum ? (waNum.length===11 ? "+"+waNum : waNum) : "";
   const ciudad = /callao/i.test(o.distrito||"") ? "Callao" : "Lima";
-  const mapsQ = (!o.restringido && o.direccion) ? encodeURIComponent(`${o.direccion}, ${o.distrito||""}, ${ciudad}, Perú`) : "";
-  const qa = (telNum||mapsQ) ? `<div class="qa">${telNum?`<a href="tel:${telNum}">📞 Llamar</a><a href="https://wa.me/${waNum}?text=${waMsg}" target="_blank" rel="noopener">💬 WhatsApp</a>`:""}${mapsQ?`<a href="https://www.google.com/maps/search/?api=1&amp;query=${mapsQ}" target="_blank" rel="noopener">📍 Cómo llegar</a>`:""}</div>` : "";
+  const tieneGeo = o.geo && typeof o.geo.lat==="number" && typeof o.geo.lng==="number";
+  const mapsHref = tieneGeo
+    ? `https://www.google.com/maps/search/?api=1&query=${o.geo.lat},${o.geo.lng}`
+    : ((!o.restringido && o.direccion) ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${o.direccion}, ${o.distrito||""}, ${ciudad}, Perú`)}` : "");
+  const mapsLabel = tieneGeo ? "📍 Cómo llegar (ubicación exacta)" : "📍 Cómo llegar";
+  const qa = (telNum||mapsHref) ? `<div class="qa">${telNum?`<a href="tel:${telNum}">📞 Llamar</a><a href="https://wa.me/${waNum}?text=${waMsg}" target="_blank" rel="noopener">💬 WhatsApp</a>`:""}${mapsHref?`<a href="${mapsHref}" target="_blank" rel="noopener">${mapsLabel}</a>`:""}</div>` : "";
   return `
   <div class="card"${cardStyle}>
     <div class="row">

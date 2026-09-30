@@ -38,6 +38,9 @@ button:disabled{opacity:.6;cursor:default;}
 .center .big{font-size:34px;margin-bottom:6px;}
 .center h1{margin-bottom:8px;}
 .hidden{display:none;}
+.geo-btn{width:auto;display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:9px 14px;border-radius:12px;border:1.5px dashed var(--line);background:none;color:var(--ink);font-size:13px;font-weight:600;box-shadow:none;}
+.geo-btn:disabled{opacity:.6;}
+.geo-ok{margin-top:8px;font-size:12.5px;color:#1f8a4c;font-weight:600;}
 .hint{font-size:11.5px;color:var(--sub);margin-top:6px;}
 .chips{display:flex;flex-wrap:wrap;gap:8px;}
 button.chip{width:auto;margin:0;padding:10px 16px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--ink);font-size:14px;font-weight:600;box-shadow:none;min-width:52px;}
@@ -85,12 +88,14 @@ input.err,.chips.err{border-color:var(--bad);}
     <div id="fieldsLima">
       <label>DISTRITO:</label><div class="ac"><input id="f_distrito" autocomplete="off" autocapitalize="words" placeholder="Escribe y elige tu distrito"><ul class="ac-list hidden" id="ac_f_distrito"></ul></div>
       <label>DIRECCIÓN:</label><input id="f_direccion">
+      <button type="button" id="f_geoBtn" class="geo-btn">📍 Usar mi ubicación (opcional)</button>
+      <div class="geo-ok hidden" id="f_geoOk">✅ Ubicación exacta agregada</div>
       <label>NOMBRE:</label><input id="f_nombre">
       <label>CEL:</label><input id="f_cel" inputmode="tel" maxlength="16" placeholder="9 dígitos, ej. 987654321" autocomplete="tel">
       <label>TALLA:</label>
       <input type="hidden" id="f_talla">
       <div class="chips" data-talla="f">
-        <button type="button" class="chip" data-t="S">S</button><button type="button" class="chip" data-t="M">M</button><button type="button" class="chip" data-t="L">L</button><button type="button" class="chip" data-t="XL">XL</button><button type="button" class="chip" data-t="XXL">XXL</button><button type="button" class="chip" data-t="otra">Otra</button>
+        <button type="button" class="chip" data-t="S">S</button><button type="button" class="chip" data-t="M">M</button><button type="button" class="chip" data-t="L">L</button><button type="button" class="chip" data-t="XL">XL</button><button type="button" class="chip" data-t="otra">Otra</button>
       </div>
       <input id="f_talla_otra" class="hidden" placeholder="Escribe tu talla" style="margin-top:8px;">
       <div class="hint">Puedes elegir más de una si llevas prendas de distintas tallas.</div>
@@ -109,7 +114,7 @@ input.err,.chips.err{border-color:var(--bad);}
       <label>TALLA:</label>
       <input type="hidden" id="p_talla">
       <div class="chips" data-talla="p">
-        <button type="button" class="chip" data-t="S">S</button><button type="button" class="chip" data-t="M">M</button><button type="button" class="chip" data-t="L">L</button><button type="button" class="chip" data-t="XL">XL</button><button type="button" class="chip" data-t="XXL">XXL</button><button type="button" class="chip" data-t="otra">Otra</button>
+        <button type="button" class="chip" data-t="S">S</button><button type="button" class="chip" data-t="M">M</button><button type="button" class="chip" data-t="L">L</button><button type="button" class="chip" data-t="XL">XL</button><button type="button" class="chip" data-t="otra">Otra</button>
       </div>
       <input id="p_talla_otra" class="hidden" placeholder="Escribe tu talla" style="margin-top:8px;">
       <div class="hint">Puedes elegir más de una si llevas prendas de distintas tallas.</div>
@@ -245,6 +250,27 @@ function dniValido(txt){
 }
 function marcarError(id){ const el=document.getElementById(id); if(!el) return; el.classList.add("err"); el.scrollIntoView({behavior:"smooth",block:"center"}); if(el.focus && el.tagName==="INPUT") el.focus({preventScroll:true}); el.addEventListener("input",()=>el.classList.remove("err"),{once:true}); }
 
+/* ---------- UBICACIÓN GPS (opcional, gratis, sin API de pago) ---------- */
+let geoCoords=null;
+document.getElementById("f_geoBtn").addEventListener("click", ()=>{
+  const btn=document.getElementById("f_geoBtn");
+  if(!("geolocation" in navigator)){ btn.textContent="Tu navegador no soporta ubicación"; return; }
+  btn.disabled=true; btn.textContent="Obteniendo ubicación...";
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      geoCoords={lat:+pos.coords.latitude.toFixed(6), lng:+pos.coords.longitude.toFixed(6)};
+      btn.disabled=false; btn.textContent="📍 Actualizar mi ubicación";
+      document.getElementById("f_geoOk").classList.remove("hidden");
+    },
+    err=>{
+      geoCoords=null; btn.disabled=false; btn.textContent="📍 Usar mi ubicación (opcional)";
+      document.getElementById("f_geoOk").classList.add("hidden");
+      alert(err.code===1 ? "Diste \"no permitir\" a la ubicación. Puedes seguir sin ella, solo escribe bien tu dirección." : "No se pudo obtener tu ubicación. Puedes seguir sin ella.");
+    },
+    {enableHighAccuracy:true, timeout:10000}
+  );
+});
+
 function showState(id){
   ["stateLoading","stateInvalid","stateUsed","stateForm","stateDone"].forEach(s=>{
     document.getElementById(s).classList.toggle("hidden", s!==id);
@@ -314,6 +340,7 @@ document.getElementById("sendBtn").addEventListener("click", async ()=>{
   } : {
     distrito: v("f_distrito"),
     direccion: v("f_direccion"),
+    geo: geoCoords,
     nombre: v("f_nombre"),
     cel: v("f_cel"),
     talla: v("f_talla"),
