@@ -340,7 +340,6 @@ document.getElementById("sendBtn").addEventListener("click", async ()=>{
   } : {
     distrito: v("f_distrito"),
     direccion: v("f_direccion"),
-    geo: geoCoords,
     nombre: v("f_nombre"),
     cel: v("f_cel"),
     talla: v("f_talla"),
@@ -381,8 +380,10 @@ document.getElementById("sendBtn").addEventListener("click", async ()=>{
     const now=Date.now();
     const pedidoRef=db.collection("pedidos").doc();
     const enlaceRef=db.collection("enlaces").doc(token);
+    const datosPedido = {...campos, tipo:"", createdAt:now, dateKey:localDateKey(new Date(now)), motorizadoEmail:null, enlaceToken:token, origen:"cliente", restringido:enlaceRestringido};
+    if(!enlaceRestringido && geoCoords) datosPedido.geo = geoCoords; // solo se manda si el cliente la usó (y si ya subiste la regla nueva de Firestore)
     const batch=db.batch();
-    batch.set(pedidoRef, {...campos, tipo:"", createdAt:now, dateKey:localDateKey(new Date(now)), motorizadoEmail:null, enlaceToken:token, origen:"cliente", restringido:enlaceRestringido});
+    batch.set(pedidoRef, datosPedido);
     batch.update(enlaceRef, {usado:true, pedidoId:pedidoRef.id, usadoAt:now});
     await batch.commit();
     const waUrl = "https://wa.me/51914212427?text="+encodeURIComponent(mensajeWhatsapp(campos));
@@ -393,7 +394,9 @@ document.getElementById("sendBtn").addEventListener("click", async ()=>{
   }catch(e){
     console.error("Error enviando pedido:", e);
     if(waWin) waWin.close();
-    statusEl.textContent="No se pudo enviar. Es posible que el enlace ya se haya usado. Pide uno nuevo a VICEWRLD.";
+    statusEl.textContent = e && e.code==="permission-denied"
+      ? "No se pudo enviar (permiso denegado). Avisa a VICEWRLD, puede que falte actualizar algo en el sistema."
+      : "No se pudo enviar. Revisa tu internet e inténtalo de nuevo. Si sigue fallando, pide un enlace nuevo a VICEWRLD.";
     btn.disabled=false;
   }
 });
