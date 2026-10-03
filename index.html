@@ -530,6 +530,32 @@ function fechaEfectiva(o){
   if(o.estado==="entregado" && o.estadoAt) return localDateKey(new Date(o.estadoAt));
   return o.dateKey;
 }
+// Cierre automático: cada vez que la app carga datos, si hay un día pasado (antes de
+// hoy) con pedidos entregados y sin cierre todavía, lo cierra solo -- sin que nadie
+// toque el botón. Cubre también el atraso de días viejos que quedaron sin cerrar.
+let autoCloseRunning=false;
+function maybeAutoCloseDays(){
+  if(autoCloseRunning) return;
+  if(myRole!=="dueno" && myRole!=="supervisor") return;
+  const hoy=localDateKey(new Date());
+  const diasPendientes=new Set();
+  merged().forEach(o=>{
+    if(o.estado!=="entregado") return;
+    const k=fechaEfectiva(o);
+    if(k<hoy && !cierresMap[k]) diasPendientes.add(k);
+  });
+  if(!diasPendientes.size) return;
+  autoCloseRunning=true;
+  (async()=>{
+    for(const dia of diasPendientes){
+      try{
+        const r=computeCierre(dia);
+        await db.collection("cierres").doc(dia).set({...r, closedAt:Date.now(), closedBy:myEmail, auto:true});
+      }catch(e){ console.error("No se pudo autocerrar el día "+dia+":", e); }
+    }
+    autoCloseRunning=false;
+  })();
+}
 function fmtFechaHora(ts){
   if(!ts) return "";
   const d = new Date(ts);
@@ -687,6 +713,7 @@ function render(){
   const active = visiblePedidos().filter(o=>o.estado!=="entregado"||!cierresMap[fechaEfectiva(o)]);
   const items = active.filter(o=>filter==="all"||o.estado===filter).sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
   document.getElementById("subtitle").textContent = active.length + " pedido(s) activo(s) · " + (myRole==="dueno"?"Dueño":myRole==="supervisor"?"Supervisor":"Motorizado");
+  maybeAutoCloseDays();
   let html;
   const q=searchQ.trim();
   if(q){
@@ -1157,7 +1184,7 @@ document.getElementById("closeDayBtn").addEventListener("click", async ()=>{
     `<div class="sumtotal">Total general a depositar: S/ ${r.totalDeposito.toFixed(2)}</div>
      <div class="sumrow" style="border-bottom:none;"><span>👕 Total de prendas entregadas</span><b>${r.totalPrendas||0}</b></div>`;
   document.getElementById("sumBg").classList.add("open");
-  try{ await db.collection("cierres").doc(hoy).set({...r, closedAt:Date.now(), closedBy:myEmail}); }
+  try{ await db.collection("cierres").doc(hoy).set({...r, closedAt:Date.now(), closedBy:myEmail, auto:false}); }
   catch(e){ sumStatus.textContent="No se pudo guardar el cierre."; console.error(e); }
 });
 document.getElementById("sumClose").addEventListener("click",()=>document.getElementById("sumBg").classList.remove("open"));
